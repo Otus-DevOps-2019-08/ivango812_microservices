@@ -1,0 +1,26 @@
+---
+# tasks file for roles/docker
+- apt: update_cache=yes upgrade=safe cache_valid_time=3600
+- name: Add apt-key
+  apt_key:
+    keyserver: hkp://p80.pool.sks-keyservers.net:80
+    id: 58118E89F3A912897C070ADBF76221572C52609D
+- name: Add APT repository
+  apt_repository:
+    repo: deb [ arch=amd64,arm64 ] https://apt.dockerproject.org/repo ubuntu-xenial main
+    # state: present # default
+- apt: update_cache=yes upgrade=safe cache_valid_time=3600
+- name: Install docker-engine
+  apt:
+    name: docker-engine
+    # force_apt_get: yes
+    state: present
+- name: Enable docker-engine service
+  service:
+    name: docker
+    enabled: yes
+- name: Start docker-engine service
+  service:
+    name: docker
+    state: started
+

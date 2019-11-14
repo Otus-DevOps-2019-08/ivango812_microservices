@@ -1,0 +1,31 @@
+{
+    "variables": {
+        "project_id": "",
+        "source_image_family": "",
+        "machine_type": "f1-micro"
+    },
+    "builders": [
+        {
+            "type": "googlecompute",
+            "project_id": "{{ user `project_id`}}",
+            "image_name": "docker-host-{{timestamp}}",
+            "image_family": "docker-host",
+            "source_image_family": "{{ user `source_image_family`}}",
+            "zone": "europe-west1-b",
+            "ssh_username": "appuser",
+            "machine_type": "{{ user `machine_type`}}",
+            "image_description": "Docker preinstalled image",
+            "disk_size": 10,
+            "disk_type": "pd-standard",
+            "network": "default"
+        }
+    ],
+    "provisioners": [
+        {
+            "type": "ansible",
+            "roles_path": "{{ pwd }}/roles",
+            "ansible_env_vars": ["ANSIBLE_ROLES_PATH={{ pwd }}/roles"],
+            "playbook_file": "playbooks/docker_engine_install.yml"
+        }
+    ]
+}
