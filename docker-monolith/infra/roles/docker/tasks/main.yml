@@ -23,4 +23,9 @@
   service:
     name: docker
     state: started
-
+- name: Install pip
+  apt:
+    name: python-pip
+- name: Install docker pip module
+  pip:
+    name: docker

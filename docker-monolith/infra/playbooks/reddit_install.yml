@@ -1,0 +1,11 @@
+---
+- hosts: all
+  remote_user: appuser
+  become: yes
+  tasks:
+    - name: Run docker container reddit
+      docker_container:
+        name: reddit
+        image: ivango/otus-reddit:1.0
+        ports:
+        - "9292:9292"
