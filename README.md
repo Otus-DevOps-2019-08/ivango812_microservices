@@ -3,7 +3,39 @@ ivango812 microservices repository
 
 # Lesson 15
 
-Docker-2
+Studying Docker - basics.
+
+```
+docker images - Images list
+docker images -a - All images list
+docker ps # Containers list running
+docker ps -a # Containers list all
+
+docker build -t <repo>:<tag> <path to Dockerfile> # Build image from Dockerfile
+docker commit <u_container_id> <image_name> # create image from container
+
+docker run -rm <image> # Run container from image and remove container after stop
+docker start <container_id>
+docker stop <container_id> 
+dcoker attach <u_container_id> # attach terminal to running container
+docker exec -it -rm <container_id> <command> # Run command inside container in interactive mode
+
+docker rm <container_id> # Remove container
+docker rm -f <container_id> # Force container remove
+docker rmi <image_name> # Remove image
+docker rmi -f <image_name> # Force remove image
+docker rm $(docker ps -q) # remove all running containers
+docker rm $(docker ps -a -q) # remove all containers (running and stopped)
+docker rmi $(docker images) # remove all images
+
+docker login
+docker tag reddit:latest <your-login>/otus-reddit:1.0 # add tag to the image
+docker push <your-login>/otus-reddit:1.0 # push to docker hub
+
+docker inspect <your-login>/otus-reddit:1.0 # inspect image
+
+docker run --name reddit -d -p 9292:9292 <your-login>/otus-reddit:1.0 # expose port 9292 and map in on 9292 external port
+```
 
 Change GCP PROJECT
 
@@ -42,18 +74,16 @@ Docker container has isolated PIDs, main PID=1 when at the docker host is not =1
 gcloud compute firewall-rules create reddit-app --project=<project_id> --allow tcp:9292 --target-tags=docker-machine --description="Allow PUMA connections" --direction=INGRESS
 ```
 
-Create terraform file for instances creation:
+Create terraform file for instances creation https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/docker-2/docker-monolith/infra/main.tf
 
-```
-```
+
+Helps to install terraform if you've got on macOS Catalina `Error: Permission denied @ apply2files - /usr/local/share/Library/Caches/Yarn/v4/npm...`
 
 ```
 sudo yarn cache clean
 brew cleanup
+brew install terraform
 ```
-
-Htlps to install terraform if you've got `Error: Permission denied @ apply2files - /usr/local/share/Library/Caches/Yarn/v4/npm...`
-
 
 # Lesson 16
 
@@ -158,4 +188,3 @@ docker rm $(docker ps -q)
 ```
 docker rmi $(docker images -q)
 ```
-
