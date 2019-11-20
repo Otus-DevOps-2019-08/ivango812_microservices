@@ -4,7 +4,7 @@ ivango812 microservices repository
 
 # Lesson 15
 
-Studying Docker
+Studying Docker - basics.
 
 ```
 docker images - Images list
