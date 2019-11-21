@@ -188,3 +188,76 @@ docker rm $(docker ps -q)
 ```
 docker rmi $(docker images -q)
 ```
+
+
+# Lesson 17
+
+Studying Docker Networks & Docker Compose
+
+
+## Docker Networks
+
+Network drivers:
+
+*Bridge* - Default network driver.
+*Host* - For standalone containers, remove network isolation between the container and the Docker host, and use the host’s networking directly.
+*Overlay* - Overlay networks connect multiple Docker daemons together and enable swarm services to communicate with each other. You can also use overlay networks to facilitate communication between a swarm service and a standalone container, or between two standalone containers on different Docker daemons. This strategy removes the need to do OS-level routing between these containers.
+*Macvlan* - Macvlan networks allow you to assign a MAC address to a container, making it appear as a physical device on your network. The Docker daemon routes traffic to containers by their MAC addresses. Using the macvlan driver is sometimes the best choice when dealing with legacy applications that expect to be directly connected to the physical network, rather than routed through the Docker host’s network stack.
+*None* - For this container, disable all networking. Usually used in conjunction with a custom network driver.
+
+
+## Docker Volumes
+
+
+```
+volumes:
+  - volume_name
+
+
+```
+
+## Docker Compose
+
+Version in `docker-compose.yml` file shows which Compose file versions support specific Docker releases: https://docs.docker.com/compose/compose-file/
+
+If we want to set project name (container prefix) for running containers use:
+
+```
+docker-compose -p micro up -d
+# or
+docker-compose --project-name micro up -d
+```
+-Set project-name `micro`-
+
+
+## Difference between CMD and ENTRYPOINT
+
+https://habr.com/ru/company/southbridge/blog/329138/
+
+```
+FROM ubuntu:16.04
+ENTRYPOINT ["/bin/echo"]
+CMD ["Hello"]
+```
+
+Produce:
+
+```
+$ docker build -t test .
+$ docker run test
+Hello
+```
+
+Default command for `ENTRYPOINT` - `/bin/sh -c`
+
+In other words - `ENTRYPOINT` it's a command, `CMD` - arguments for this command.
+
+
+## Difference betweeen COPY and ADD
+
+`ADD` do more then `COPY`
+`ADD` can copy from `url` or unpack archive file (identity, gzip, bzip2 или xz)
+
+Use `COPY` if you don't need `ADD` magic
+
+`docker-compose.override.yml` docker reads after `docker-compose.yml` and overrides options, so you don't need to dublicate parameners from `docker-compose.yml` in `docker-compose.override.yml`
