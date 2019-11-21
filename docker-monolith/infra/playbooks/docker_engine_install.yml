@@ -1,0 +1,7 @@
+---
+- name: Install Docker engine
+  hosts: all
+  become: true
+  tasks:
+    - include_role:
+        name: docker

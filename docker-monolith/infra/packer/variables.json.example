@@ -1,0 +1,4 @@
+{
+    "project_id": "Project ID from GCP",
+    "source_image_family": "Image name for the source imagex"
+}
