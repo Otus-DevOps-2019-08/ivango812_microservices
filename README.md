@@ -199,21 +199,78 @@ Studying Docker Networks & Docker Compose
 
 Network drivers:
 
-*Bridge* - Default network driver.
-*Host* - For standalone containers, remove network isolation between the container and the Docker host, and use the host’s networking directly.
-*Overlay* - Overlay networks connect multiple Docker daemons together and enable swarm services to communicate with each other. You can also use overlay networks to facilitate communication between a swarm service and a standalone container, or between two standalone containers on different Docker daemons. This strategy removes the need to do OS-level routing between these containers.
-*Macvlan* - Macvlan networks allow you to assign a MAC address to a container, making it appear as a physical device on your network. The Docker daemon routes traffic to containers by their MAC addresses. Using the macvlan driver is sometimes the best choice when dealing with legacy applications that expect to be directly connected to the physical network, rather than routed through the Docker host’s network stack.
-*None* - For this container, disable all networking. Usually used in conjunction with a custom network driver.
+`Bridge` - Default network driver.
+
+`Host` - For standalone containers, remove network isolation between the container and the Docker host, and use the host’s networking directly.
+
+`Overlay` - Overlay networks connect multiple Docker daemons together and enable swarm services to communicate with each other. You can also use overlay networks to facilitate communication between a swarm service and a standalone container, or between two standalone containers on different Docker daemons. This strategy removes the need to do OS-level routing between these containers.
+
+`Macvlan` - Macvlan networks allow you to assign a MAC address to a container, making it appear as a physical device on your network. The Docker daemon routes traffic to containers by their MAC addresses. Using the macvlan driver is sometimes the best choice when dealing with legacy applications that expect to be directly connected to the physical network, rather than routed through the Docker host’s network stack.
+
+`None` - For this container, disable all networking. Usually used in conjunction with a custom network driver.
+
+
+```
+docker network
+
+Usage:	docker network COMMAND
+
+Manage networks
+
+Commands:
+  connect     Connect a container to a network
+  create      Create a network
+  disconnect  Disconnect a container from a network
+  inspect     Display detailed information on one or more networks
+  ls          List networks
+  prune       Remove all unused networks
+  rm          Remove one or more networks
+```
 
 
 ## Docker Volumes
 
 
+https://docs.docker.com/storage/volumes/
+
 ```
+$ docker volume 
+
+Usage:	docker volume COMMAND
+
+Manage volumes
+
+Commands:
+  create      Create a volume
+  inspect     Display detailed information on one or more volumes
+  ls          List volumes
+  prune       Remove all unused local volumes
+  rm          Remove one or more volumes
+```
+
+`Dockerfile`
+
+```
+container_name:
+  volumes:
+    - volume_name:/path/inside/container:rw
+
 volumes:
-  - volume_name
+  volume_name:
+```
 
+`rw` means read & write mode
+`ro` means readonly mode
 
+Also you can mount volume while `docker run` commad:
+```
+docker run -v nginx-vol:/usr/share/nginx/html:ro <container_id>
+# or
+docker run --volume -v nginx-vol:/usr/share/nginx/html:ro
+```
+
+```
+docker run --mount source=myvol2,target=/app
 ```
 
 ## Docker Compose
@@ -227,7 +284,7 @@ docker-compose -p micro up -d
 # or
 docker-compose --project-name micro up -d
 ```
--Set project-name `micro`-
+Set project-name `micro`
 
 
 ## Difference between CMD and ENTRYPOINT
