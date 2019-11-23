@@ -23,7 +23,6 @@ build:
   stage: build
   services:
   - docker: 19.03.1-dind
-    alas: docker
     entrypoint: ["env", "-u", "DOCKER_HOST"]
     command: ["dockerd-entrypoint.sh"]
   before_script:
