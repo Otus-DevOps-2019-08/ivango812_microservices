@@ -11,7 +11,6 @@ variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
 
 before_script:
-  - docker info
   - echo $GOOGLE_APPLICATION_CREDENTIALS
   - cd reddit
   - bundle install
