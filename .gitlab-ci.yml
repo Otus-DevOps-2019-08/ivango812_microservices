@@ -19,15 +19,13 @@ before_script:
   # - bundle install
 
 build:
-  image: 
-    name: docker:19.03.1
-    entrypoint: ["env", "-u", "DOCKER_HOST"]
-    # command: ["dockerd-entrypoint.sh"]
+  image: docker:19.03.1
   stage: build
-  # services:
-  #   - docker:19.03.1-dind
-    # entrypoint: ["env", "-u", "DOCKER_HOST"]
-    # command: ["dockerd-entrypoint.sh"]
+  services:
+    name: docker:19.03.1-dind
+    alas: docker
+    entrypoint: ["env", "-u", "DOCKER_HOST"]
+    command: ["dockerd-entrypoint.sh"]
   before_script:
   script:
     - docker info
