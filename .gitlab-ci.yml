@@ -20,7 +20,7 @@ build:
   stage: build
   before_script:
   script:
-    - docker info
+    - docker --version
 
 
 test_unit_job: 
