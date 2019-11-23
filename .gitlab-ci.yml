@@ -22,7 +22,7 @@ build:
   image: 
     name: docker:19.03.1
     entrypoint: ["env", "-u", "DOCKER_HOST"]
-    command: ["dockerd-entrypoint.sh"]
+    # command: ["dockerd-entrypoint.sh"]
   stage: build
   # services:
   #   - docker:19.03.1-dind
