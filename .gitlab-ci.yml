@@ -10,8 +10,8 @@ stages:
 variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
   # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
-  DOCKER_HOST: tcp://docker:2376
-  DOCKER_TLS_CERTDIR: "/certs"
+  # DOCKER_HOST: tcp://docker:2376
+  # DOCKER_TLS_CERTDIR: "/certs"
 
 before_script:
   - echo $GOOGLE_APPLICATION_CREDENTIALS
@@ -21,8 +21,8 @@ before_script:
 build:
   image: docker:19.03.1
   stage: build
-  services:
-    - docker:19.03.1-dind
+  # services:
+  #   - docker:19.03.1-dind
     # entrypoint: ["env", "-u", "DOCKER_HOST"]
     # command: ["dockerd-entrypoint.sh"]
   before_script:
