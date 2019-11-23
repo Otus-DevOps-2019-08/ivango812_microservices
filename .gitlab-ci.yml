@@ -22,7 +22,7 @@ build:
   script:
     - docker --version
     - echo 'Building'
-    - cd reddit/
+    # - cd reddit/
     - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
     - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
     - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
