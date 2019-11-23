@@ -13,7 +13,7 @@ variables:
 before_script:
   - echo $GOOGLE_APPLICATION_CREDENTIALS
   - cd reddit
-  - bundle install
+  # - bundle install
 
 build:
   image: docker:19.03.1
