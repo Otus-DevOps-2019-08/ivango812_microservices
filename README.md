@@ -318,3 +318,12 @@ In other words - `ENTRYPOINT` it's a command, `CMD` - arguments for this command
 Use `COPY` if you don't need `ADD` magic
 
 `docker-compose.override.yml` docker reads after `docker-compose.yml` and overrides options, so you don't need to dublicate parameners from `docker-compose.yml` in `docker-compose.override.yml`
+
+
+# Lesson 19
+
+Create runner
+
+```
+docker run -d --name gitlab-runner --restart always \ -v /srv/gitlab-runner/config:/etc/gitlab-runner \ -v /var/run/docker.sock:/var/run/docker.sock \ gitlab/gitlab-runner:latest
+```
