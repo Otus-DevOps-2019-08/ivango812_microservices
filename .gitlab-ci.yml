@@ -16,10 +16,17 @@ before_script:
   - cd reddit
   - bundle install
 
-build_job:
+build:
+  image: docker:19.03.1
   stage: build
+  services:
+    - docker:19.03.1-dind
+  variables:
+    # Use TLS https://docs.gitlab.com/ee/ci/docker/using_docker_build.html#tls-enabled
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
   script:
-    - echo 'Building'
+    - docker info
 
 test_unit_job: 
   stage: test 
