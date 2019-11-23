@@ -25,6 +25,7 @@ build:
     DOCKER_TLS_CERTDIR: ""
   services:
       - name: docker:dind
+        alias: docker
         entrypoint: ["env", "-u", "DOCKER_HOST"]
         command: ["dockerd-entrypoint.sh"]
   script:
