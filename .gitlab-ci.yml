@@ -19,7 +19,7 @@ build:
   image: docker:18.09
   stage: build
   services:
-      - name: docker:18.09-dind
+      - docker:18.09-dind
         # alias: docker
         # entrypoint: ["env", "-u", "DOCKER_HOST"]
         # command: ["dockerd-entrypoint.sh"]
