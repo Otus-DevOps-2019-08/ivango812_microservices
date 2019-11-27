@@ -11,7 +11,7 @@ variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
 
 before_script:
-  - echo $GOOGLE_APPLICATION_CREDENTIALS
+  # - echo $GOOGLE_APPLICATION_CREDENTIALS
   - cd reddit
   # - bundle install
 
@@ -42,6 +42,7 @@ test_unit_job:
   services:
     - mongo:latest 
   script:
+    - bundle install
     - ruby simpletest.rb
 
 test_integration_job:
