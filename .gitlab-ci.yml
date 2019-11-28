@@ -60,6 +60,11 @@ stage:
   when: manual
   only:
     - /^\d+\.\d+\.\d+/
+  services:
+      - docker:18.09-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
   script:
     - echo 'Deploy' 
     - docker-machine --version
