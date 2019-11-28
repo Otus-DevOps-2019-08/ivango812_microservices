@@ -67,6 +67,7 @@ stage:
     DOCKER_DRIVER: overlay2
   script:
     - echo 'Deploy' 
+    - docker --version
     - docker-machine --version
   environment:
     name: stage
