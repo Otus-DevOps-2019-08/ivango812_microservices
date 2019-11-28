@@ -20,22 +20,15 @@ build:
   stage: build
   services:
       - docker:18.09-dind
-        # alias: docker
-        # entrypoint: ["env", "-u", "DOCKER_HOST"]
-        # command: ["dockerd-entrypoint.sh"]
   variables:
     DOCKER_HOST: tcp://docker:2375/
     DOCKER_DRIVER: overlay2
-    # See https://github.com/docker-library/docker/pull/166
-    # DOCKER_TLS_CERTDIR: ""
   script:
     - docker --version
     - echo 'Building'
-    # - cd reddit/
     - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
     - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
     - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
-
 
 test_unit_job: 
   stage: test 
@@ -62,12 +55,14 @@ branch review:
     - master
 
 stage: 
+  image: docker:18.09
   stage: stage 
   when: manual
   only:
     - /^\d+\.\d+\.\d+/
   script:
     - echo 'Deploy' 
+    - docker-machine --version
   environment:
     name: stage
     url: https://beta.example.com
