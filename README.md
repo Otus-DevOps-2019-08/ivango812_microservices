@@ -419,3 +419,55 @@ credentials.json content
           cpus: '0.25'
           memory: 20M
 ```
+
+
+Установить активную машину:
+
+```
+eval $(docker-machine env gitlab-ce)
+docker-machine ls  
+```
+где gitlab-ce - хост с докером, который нужно сделать активным
+
+
+Запуск и Регистрация раннера:
+
+--restart always \
+
+docker run -d -it --rm \
+--name docker-runner2 \
+-v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "Cif78nZbx34bniAwvp2L" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
+
+
+docker run -d --name gitlab-runner-machine --restart always \
+-v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner:latest
+
+docker exec -it gitlab-runner-machine gitlab-runner register --run-untagged --locked=false
+
+docker exec gitlab-runner-machine \
+gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "Cif78nZbx34bniAwvp2L" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
+
