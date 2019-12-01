@@ -73,8 +73,7 @@ stage:
   variables:
     DOCKER_HOST: tcp://104.155.2.98:2376
     # DOCKER_HOST: ssh://appuser@104.155.2.98
-    DOCKER_TLS_VERIFY: 0
-    # DOCKER_DRIVER: overlay2
+    DOCKER_DRIVER: overlay2
   script:
     - echo 'Deploy' 
     - docker --version
