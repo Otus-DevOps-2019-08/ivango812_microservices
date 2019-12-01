@@ -36,6 +36,8 @@ test_unit_job:
   stage: test 
   services:
     - mongo:latest 
+  only:
+    - /^test/
   script:
     - bundle install
     - ruby simpletest.rb
@@ -70,6 +72,8 @@ stage:
   script:
     - echo 'Deploy' 
     - docker --version
+    - docker run -d $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+    - docker ps
     # - docker-machine --version
   environment:
     name: stage
