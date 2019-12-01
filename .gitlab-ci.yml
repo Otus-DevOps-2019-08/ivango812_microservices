@@ -20,8 +20,8 @@ build:
   stage: build
   services:
       - docker:18.09-dind
-  only:
-    - /^build/
+  # only:
+  #   - /^build/
   variables:
     DOCKER_HOST: tcp://docker:2375/
     DOCKER_DRIVER: overlay2
