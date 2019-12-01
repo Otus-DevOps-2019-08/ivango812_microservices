@@ -82,7 +82,7 @@ stage:
     - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
     - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
     - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
-    - docker run -d $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+    - docker run -d -p 9292:9292 $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
     - docker ps
     # - docker-machine --version
   environment:

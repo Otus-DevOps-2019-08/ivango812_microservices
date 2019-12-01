@@ -419,3 +419,30 @@ credentials.json content
           cpus: '0.25'
           memory: 20M
 ```
+
+
+Подключение к удаленной docker-машине
+
+нужно в окружение gitlab закинуть TSL сертификаты:
+
+```
+docker-machine config staging-docker
+--tlsverify
+--tlscacert="/Users/me/.docker/machine/machines/staging-docker/ca.pem"
+--tlscert="/Users/me/.docker/machine/machines/staging-docker/cert.pem"
+--tlskey="/Users/me/.docker/machine/machines/staging-docker/key.pem"
+-H=tcp://104.155.2.98:2376
+```
+
+```
+ variables:
+    DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
+  script:
+    - echo 'Deploy' 
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+    - docker run -d -p 9292:9292 $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+```
