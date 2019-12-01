@@ -44,6 +44,8 @@ test_unit_job:
 
 test_integration_job:
   stage: test
+  only:
+    - /^test/
   script:
     - echo 'Testing 2'
 
@@ -55,13 +57,15 @@ branch review:
     url: http://$CI_ENVIRONMENT_SLUG.example.com 
   only:
     - branches 
+    - /^review/
   except:
     - master
 
 stage: 
   image: docker:18.09
   stage: stage 
-  when: manual
+  # when: manual
+ 
   # only:
   #   - /^\d+\.\d+\.\d+/
   # services:
