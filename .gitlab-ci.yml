@@ -72,11 +72,16 @@ stage:
   #     - docker:18.09-dind
   variables:
     DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
     # DOCKER_HOST: ssh://appuser@104.155.2.98
-    DOCKER_DRIVER: overlay2
+    # DOCKER_DRIVER: overlay2
   script:
     - echo 'Deploy' 
     - docker --version
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
     - docker run -d $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
     - docker ps
     # - docker-machine --version
