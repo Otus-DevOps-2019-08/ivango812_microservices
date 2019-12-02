@@ -449,17 +449,19 @@ docker-machine config staging-docker
 
 
 
-apt update && apt install -y procps nano telnet net-tools
+apt update && apt install -y procps nano telnet net-tools iputils-ping
 
 cd /etc/nginx/
 mkdir sites-available sites-enabled
 
-nano sites-available/test.ru
+nano sites-available/branch_name
 ```
 server {
     listen 80;
+    server_name branch_name.dev.domain.com;
     location / {
-        proxy_pass http://172.17.0.2:9292;
+        #proxy_pass http://172.17.0.2:9292;
+        proxy_pass http://container_name:9292;
     }
 }
 ```
@@ -474,3 +476,8 @@ nano nginx.conf
 nginx -s reload
 
 
+```
+docker network create staging
+```
+
+docker-compose -f docker-compose-nginx.yml -d up
