@@ -14,14 +14,16 @@ before_script:
   # - echo $GOOGLE_APPLICATION_CREDENTIALS
   - cd reddit
   # - bundle install
+  - base=https://github.com/docker/machine/releases/download/v0.16.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/usr/local/bin/docker-machine && chmod +x /usr/local/bin/docker-machine
+  - docker-machine --version    
 
 build:
   image: docker:18.09
   stage: build
   services:
       - docker:18.09-dind
-  # only:
-  #   - /^build/
+  only:
+    - /^build/
   variables:
     DOCKER_HOST: tcp://docker:2375/
     DOCKER_DRIVER: overlay2
@@ -66,8 +68,8 @@ stage:
   stage: stage 
   # when: manual
  
-  # only:
-  #   - /^\d+\.\d+\.\d+/
+  only:
+    - /^\d+\.\d+\.\d+/
   # services:
   #     - docker:18.09-dind
   variables:
