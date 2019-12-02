@@ -446,3 +446,31 @@ docker-machine config staging-docker
     - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
     - docker run -d -p 9292:9292 $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
 ```
+
+
+
+apt update && apt install -y procps nano telnet net-tools
+
+cd /etc/nginx/
+mkdir sites-available sites-enabled
+
+nano sites-available/test.ru
+```
+server {
+    listen 80;
+    location / {
+        proxy_pass http://172.17.0.2:9292;
+    }
+}
+```
+ln -s /etc/nginx/sites-available/test.ru /etc/nginx/sites-enabled/test.ru
+
+add to nginx.conf
+
+nano nginx.conf
+```
+    include /etc/nginx/sites-enabled/*;
+```
+nginx -s reload
+
+

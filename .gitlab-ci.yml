@@ -20,8 +20,8 @@ build:
   stage: build
   services:
       - docker:18.09-dind
-  only:
-    - /^build/
+  # only:
+  #   - /^build/
   variables:
     DOCKER_HOST: tcp://docker:2375/
     DOCKER_DRIVER: overlay2
@@ -65,31 +65,25 @@ stage:
   image: docker:18.09
   stage: stage 
   # when: manual
- 
   # only:
   #   - /^\d+\.\d+\.\d+/
-  # services:
-  #     - docker:18.09-dind
   variables:
     DOCKER_HOST: tcp://104.155.2.98:2376
     DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "/certs"
-    # DOCKER_HOST: ssh://appuser@104.155.2.98
-    # DOCKER_DRIVER: overlay2
   script:
     - echo 'Deploy' 
-    - docker --version
     - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
     - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
     - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
     # - docker rm -f reddit
     # - docker run -d -p 9292:9292 --name reddit $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+    - docker run -d --name reddit $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
     - docker ps
-    # - docker-machine --version
-    - apk add --update curl && rm -rf /var/cache/apk/*
-    - base=https://github.com/docker/machine/releases/download/v0.16.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/usr/local/bin/docker-machine && chmod +x /usr/local/bin/docker-machine
-    - docker-machine --version    
-    - docker-machine ls
+    # - apk add --update curl && rm -rf /var/cache/apk/*
+    # - base=https://github.com/docker/machine/releases/download/v0.16.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/usr/local/bin/docker-machine && chmod +x /usr/local/bin/docker-machine
+    # - docker-machine --version    
+    # - docker-machine ls
   environment:
     name: stage
     url: https://beta.example.com
