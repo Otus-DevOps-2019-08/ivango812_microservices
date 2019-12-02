@@ -465,7 +465,7 @@ server {
     }
 }
 ```
-ln -s /etc/nginx/sites-available/test.ru /etc/nginx/sites-enabled/test.ru
+ln -s /etc/nginx/sites-available/test.site /etc/nginx/sites-enabled/test.site
 
 add to nginx.conf
 
@@ -480,4 +480,19 @@ nginx -s reload
 docker network create staging
 ```
 
-docker-compose -f docker-compose-nginx.yml -d up
+docker-compose -f docker-compose-nginx.yml up -d
+
+
+nginx.conf
+
+server {
+    listen 80;
+    server_name branch_name.dev.domain.com;
+    location / {
+        proxy_pass http://reddit-f719612a:9292;
+        #proxy_pass http://container_name:9292;
+    }
+}
+
+дефолтная сеть не резолвит контейнеры по именам, доступ только по ip
+нужно создать свою сеть чтобы можно было обращаться по именам контейнеров
