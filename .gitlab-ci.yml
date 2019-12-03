@@ -66,7 +66,7 @@ branch review:
   except:
     - master
 
-stage: 
+stage deploy: 
   image: docker:18.09
   stage: stage
   when: manual
@@ -89,7 +89,7 @@ stage:
     name: review/$CI_COMMIT_REF_NAME
     url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
 
-stage_remove:
+stage remove:
   image: docker:18.09
   stage: clean
   when: manual
