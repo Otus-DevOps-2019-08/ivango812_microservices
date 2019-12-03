@@ -93,12 +93,23 @@ stage:
 
 
 stage_remove:
+  image: docker:18.09
   stage: stage
   when: manual
+  variables:
+    DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
+    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
   script:
-  - echo 'Removing staging' 
-  # отключить сайт в nginx
-  # удалить контейнер
+    - echo 'Removing staging' 
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+    # Turn the site off at nginx
+    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
+    # Remove container with app
+    - docker rm -f $CONTAINER_NAME
 
 production: 
   stage: production 
