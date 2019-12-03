@@ -5,6 +5,7 @@ stages:
   - test
   - review
   - stage
+  - chatops
   - production
 
 variables:
@@ -100,6 +101,23 @@ stage remove:
   environment:
     name: review/$CI_COMMIT_REF_NAME
     action: stop
+
+# notify:slack:
+#   stage: notifications
+#   script:
+#     - ./scripts/notify_slack.sh "#builds" "Build on \`$CI_BUILD_REF_NAME\` failed! Commit \`$(git log -1 --oneline)\` See <https://gitlab.com/gitlab-org/$(basename "$PWD")/commit/"$CI_BUILD_REF"/builds>"
+#   when: on_failure
+#   only:
+#     - master@gitlab-org/gitlab-ce
+#     - tags@gitlab-org/gitlab-ce
+#     - master@gitlab-org/gitlab-ee
+#     - tags@gitlab-org/gitlab-ee
+
+hello-world:
+  stage: chatops
+  only: [chat]
+  script:
+    - echo "Hello World."
 
 production: 
   stage: production 
