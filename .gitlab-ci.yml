@@ -3,7 +3,6 @@ image: ruby:2.4.2
 stages:
   - build
   - test
-  - chatops
   - review
   - stage
   - production
@@ -112,13 +111,6 @@ stage remove:
 #     - tags@gitlab-org/gitlab-ce
 #     - master@gitlab-org/gitlab-ee
 #     - tags@gitlab-org/gitlab-ee
-
-hello-world:
-  stage: chatops
-  only: [chat]
-  script:
-    - echo "This command will not be shown."
-    - echo -e "section_start:$( date +%s ):chat_reply\r\033[0K\n$( ls -la )\nsection_end:$( date +%s ):chat_reply\r\033[0K"
 
 production: 
   stage: production 
