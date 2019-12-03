@@ -71,7 +71,7 @@ stage:
     DOCKER_HOST: tcp://104.155.2.98:2376
     DOCKER_TLS_VERIFY: 1
     DOCKER_CERT_PATH: "/certs"
-    CONTAINER_NAME: reddit-$CI_COMMIT_SHORT_SHA
+    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
   script:
     - echo 'Deploy' 
     - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
@@ -82,6 +82,9 @@ stage:
     - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
     - docker ps
     # TODO: Add host to nginx & reload it
+    - docker exec -it nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
+
+
     # - apk add --update curl && rm -rf /var/cache/apk/*
     # - base=https://github.com/docker/machine/releases/download/v0.16.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/usr/local/bin/docker-machine && chmod +x /usr/local/bin/docker-machine
     # - docker-machine --version    
