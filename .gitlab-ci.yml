@@ -82,7 +82,7 @@ stage:
     - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
     - docker ps
     - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
-  
+    # For install docker-machine:
     # - apk add --update curl && rm -rf /var/cache/apk/*
     # - base=https://github.com/docker/machine/releases/download/v0.16.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/usr/local/bin/docker-machine && chmod +x /usr/local/bin/docker-machine
     # - docker-machine --version    
