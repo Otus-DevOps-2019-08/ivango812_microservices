@@ -88,7 +88,7 @@ stage:
     # - docker-machine --version    
     # - docker-machine ls
   environment:
-    name: stage
+    name: review/$CI_COMMIT_REF_NAME
     url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
 
 production: 
