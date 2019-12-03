@@ -91,6 +91,15 @@ stage:
     name: review/$CI_COMMIT_REF_NAME
     url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
 
+
+stage_remove:
+  stage: stage
+  when: manual
+  script:
+  - echo 'Removing staging' 
+  # отключить сайт в nginx
+  # удалить контейнер
+
 production: 
   stage: production 
   when: manual

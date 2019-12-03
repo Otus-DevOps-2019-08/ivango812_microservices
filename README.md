@@ -451,8 +451,7 @@ docker-machine config staging-docker
 
 apt update && apt install -y procps nano telnet net-tools iputils-ping
 
-cd /etc/nginx/
-mkdir sites-available sites-enabled
+cd /etc/nginx/ && mkdir sites-available sites-enabled
 
 nano sites-available/branch_name
 ```
@@ -504,3 +503,15 @@ server {
 3. скрипт для создания нового сайта
 4. рестарт nginx
 5. скрипт для удаления/отклчючения сайта
+
+
+для групировки окружений в gitlab используется префикс вида `group/`
+
+```
+...
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
+...
+```
+
