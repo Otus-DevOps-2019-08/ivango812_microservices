@@ -522,3 +522,17 @@ server {
     # - docker-machine --version    
     # - docker-machine ls
 
+Active remote docker host
+
+```
+docker-machine use machine-name
+```
+
+Deactivate docekr host
+```
+docker-machine use -u
+```
+
+
+Как запустить cron в docker
+https://ivan.bessarabov.ru/blog/how-to-run-cron-in-docker
