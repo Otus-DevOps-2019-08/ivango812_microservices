@@ -13,16 +13,16 @@ variables:
 before_script:
   - cd reddit
 
-.docker_vars: &docker_vars
-  DOCKER_HOST: tcp://104.155.2.98:2376
-  DOCKER_TLS_VERIFY: 1
-  DOCKER_CERT_PATH: "/certs"
-  CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
-
-.docker_cert: &docker_cert
-  - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
-  - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
-  - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+.docker_conf: 
+  variables: &docker_vars
+    DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
+    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
+  script: &docker_cert
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
 
 build:
   image: docker:18.09
@@ -46,28 +46,23 @@ test_unit_job:
   stage: test 
   services:
     - mongo:latest 
-  # only:
-  #   - /^test/
   script:
     - bundle install
     - ruby simpletest.rb
 
 test_integration_job:
   stage: test
-  # only:
-  #   - /^test/
   script:
     - echo 'Testing 2'
 
 branch review:
   stage: review
-  script: echo "Deploy to $CI_ENVIRONMENT_SLUG" 
+  script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
   environment:
     name: branch/$CI_COMMIT_REF_NAME
     url: http://$CI_ENVIRONMENT_SLUG.example.com 
   only:
-    # - branches 
-    - /^review/
+    - /^feature-.*/
   except:
     - master
 
