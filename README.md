@@ -515,3 +515,10 @@ server {
 ...
 ```
 
+
+    # For install docker-machine:
+    # - apk add --update curl && rm -rf /var/cache/apk/*
+    # - base=https://github.com/docker/machine/releases/download/v0.16.0 && curl -L $base/docker-machine-$(uname -s)-$(uname -m) >/usr/local/bin/docker-machine && chmod +x /usr/local/bin/docker-machine
+    # - docker-machine --version    
+    # - docker-machine ls
+
