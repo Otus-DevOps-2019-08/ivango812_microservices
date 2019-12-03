@@ -5,7 +5,6 @@ stages:
   - test
   - review
   - stage
-  - clean
   - production
 
 variables:
@@ -13,6 +12,12 @@ variables:
 
 before_script:
   - cd reddit
+
+.docker_vars: &docker_vars
+  DOCKER_HOST: tcp://104.155.2.98:2376
+  DOCKER_TLS_VERIFY: 1
+  DOCKER_CERT_PATH: "/certs"
+  CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
 
 .docker_cert: &docker_cert
   - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
@@ -74,10 +79,7 @@ stage deploy:
     - /^\d+\.\d+\.\d+/
     - branches
   variables:
-    DOCKER_HOST: tcp://104.155.2.98:2376
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "/certs"
-    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
+    *docker_vars
   script:
     - echo 'Deploy' 
     - *docker_cert
@@ -91,13 +93,10 @@ stage deploy:
 
 stage remove:
   image: docker:18.09
-  stage: clean
+  stage: stage
   when: manual
   variables:
-    DOCKER_HOST: tcp://104.155.2.98:2376
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "/certs"
-    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
+    *docker_vars
   script:
     - echo 'Removing staging' 
     - *docker_cert
