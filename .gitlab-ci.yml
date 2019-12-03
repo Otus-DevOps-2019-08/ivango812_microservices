@@ -35,16 +35,16 @@ test_unit_job:
   stage: test 
   services:
     - mongo:latest 
-  only:
-    - /^test/
+  # only:
+  #   - /^test/
   script:
     - bundle install
     - ruby simpletest.rb
 
 test_integration_job:
   stage: test
-  only:
-    - /^test/
+  # only:
+  #   - /^test/
   script:
     - echo 'Testing 2'
 
@@ -85,7 +85,6 @@ stage:
     name: review/$CI_COMMIT_REF_NAME
     url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
 
-
 stage_remove:
   image: docker:18.09
   stage: stage
@@ -102,6 +101,9 @@ stage_remove:
     - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
     - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
     - docker rm -f $CONTAINER_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
 
 production: 
   stage: production 
