@@ -12,7 +12,6 @@ variables:
 
 before_script:
   - cd reddit
-  - bundle install
 
 build:
   image: docker:18.09
@@ -39,6 +38,7 @@ test_unit_job:
   only:
     - /^test/
   script:
+    - bundle install
     - ruby simpletest.rb
 
 test_integration_job:
