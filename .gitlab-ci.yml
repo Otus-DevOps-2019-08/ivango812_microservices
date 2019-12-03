@@ -5,6 +5,7 @@ stages:
   - test
   - review
   - stage
+  - clean
   - production
 
 variables:
@@ -12,6 +13,11 @@ variables:
 
 before_script:
   - cd reddit
+
+.docker_cert: &docker_cert
+  - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+  - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+  - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
 
 build:
   image: docker:18.09
@@ -74,9 +80,7 @@ stage:
     CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
   script:
     - echo 'Deploy' 
-    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
-    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
-    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+    - *docker_cert
     - docker rm -f $CONTAINER_NAME || true
     - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
     - docker ps
@@ -87,7 +91,7 @@ stage:
 
 stage_remove:
   image: docker:18.09
-  stage: stage
+  stage: clean
   when: manual
   variables:
     DOCKER_HOST: tcp://104.155.2.98:2376
@@ -96,9 +100,7 @@ stage_remove:
     CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
   script:
     - echo 'Removing staging' 
-    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
-    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
-    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+    - *docker_cert
     - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
     - docker rm -f $CONTAINER_NAME
   environment:
