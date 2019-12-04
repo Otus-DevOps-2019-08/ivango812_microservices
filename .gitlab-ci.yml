@@ -106,8 +106,10 @@ stage remove:
 notify:slack:
   stage: notifications
   script:
-    - ./scripts/notify_slack.sh "#builds" "Build on \`$CI_BUILD_REF_NAME\` failed! Commit \`$(git log -1 --oneline)\` See <https://gitlab.com/gitlab-org/$(basename "$PWD")/commit/"$CI_BUILD_REF"/builds>"
-#   when: on_failure
+    # - ./scripts/notify_slack.sh "#builds" "Build on \`$CI_BUILD_REF_NAME\` failed! Commit \`$(git log -1 --oneline)\` See <https://gitlab.com/gitlab-org/$(basename "$PWD")/commit/"$CI_BUILD_REF"/builds>"
+    - curl -X POST -H 'Content-type: application/json' --data '{"text":"Allow me to reintroduce myself!"}' https://hooks.slack.com/services/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
+    # https://api.slack.com/docs/message-formatting
+    #   when: on_failure
 #   only:
 #     - master@gitlab-org/gitlab-ce
 #     - tags@gitlab-org/gitlab-ce
