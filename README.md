@@ -536,3 +536,9 @@ docker-machine use -u
 
 Как запустить cron в docker
 https://ivan.bessarabov.ru/blog/how-to-run-cron-in-docker
+
+
+Отправка сообщений в Slack:
+
+curl -X POST -H 'Content-type: application/json' --data '{"text":"Allow me to reintroduce myself!"}' https://hooks.slack.com/services/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
+Дока по разметке https://api.slack.com/docs/message-formatting
