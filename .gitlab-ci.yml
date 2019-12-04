@@ -2,10 +2,12 @@ image: ruby:2.4.2
 
 stages:
   - build
+  - notifications
   - test
   - review
   - stage
   - production
+
 
 variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
@@ -101,10 +103,10 @@ stage remove:
     name: review/$CI_COMMIT_REF_NAME
     action: stop
 
-# notify:slack:
-#   stage: notifications
-#   script:
-#     - ./scripts/notify_slack.sh "#builds" "Build on \`$CI_BUILD_REF_NAME\` failed! Commit \`$(git log -1 --oneline)\` See <https://gitlab.com/gitlab-org/$(basename "$PWD")/commit/"$CI_BUILD_REF"/builds>"
+notify:slack:
+  stage: notifications
+  script:
+    - ./scripts/notify_slack.sh "#builds" "Build on \`$CI_BUILD_REF_NAME\` failed! Commit \`$(git log -1 --oneline)\` See <https://gitlab.com/gitlab-org/$(basename "$PWD")/commit/"$CI_BUILD_REF"/builds>"
 #   when: on_failure
 #   only:
 #     - master@gitlab-org/gitlab-ce
