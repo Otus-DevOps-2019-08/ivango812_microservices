@@ -525,14 +525,8 @@ server {
 Active remote docker host
 
 ```
-docker-machine use machine-name
+eval $(docker-machine env docker-host)
 ```
-
-Deactivate docekr host
-```
-docker-machine use -u
-```
-
 
 Как запустить cron в docker
 https://ivan.bessarabov.ru/blog/how-to-run-cron-in-docker
