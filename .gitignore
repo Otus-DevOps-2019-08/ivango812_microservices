@@ -6,3 +6,4 @@ env
 .terraform/
 variables.json
 .env
+.idea
