@@ -320,25 +320,47 @@ Use `COPY` if you don't need `ADD` magic
 `docker-compose.override.yml` docker reads after `docker-compose.yml` and overrides options, so you don't need to dublicate parameners from `docker-compose.yml` in `docker-compose.override.yml`
 
 
-# Lesson 19
+# Lesson 19 - Gitlab CI
 
 
-Create GCP instance for Gitlab
+### Create GCP instance with Docker for Gitlab
 
+Get the list of available OS images in GCE
+```shell script
+gcloud compute images list --uri | grep ubuntu
 ```
-terraform apply -auto-approve
+
+Create GCP instance with Docker
+
+```shell script
+export PROJECT_ID="docker-258721"
+docker-machine create --driver google \
+  --google-zone europe-west3-c \
+  --google-machine-type n1-standard-1 \
+  --google-disk-size 100 \
+  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170721 \
+  --google-project $PROJECT_ID \
+  gitlab-ce
 ```
 
-Install Docker and attach to docker-machine
+Or create GCP Instance first (with terraform) and install Docker onto it: 
 
-```
+```shell script
 docker-machine create --driver google \
   --google-project docker-258721 \
   --google-zone europe-west1-b \
   --google-use-existing \
   gitlab-ce
+```
 
-export GITLAB_EXTERNAL_IP=35.205.182.43
+Get IP of the docker-host we just created:
+
+```shell script
+docker-machine env gitlab-ce
+```
+
+```
+export GITLAB_EXTERNAL_IP=<IP>
 docker-compose config
 
 eval $(docker-machine env gitlab-ce)
