@@ -327,3 +327,157 @@ Create runner
 ```
 docker run -d --name gitlab-runner --restart always \ -v /srv/gitlab-runner/config:/etc/gitlab-runner \ -v /var/run/docker.sock:/var/run/docker.sock \ gitlab/gitlab-runner:latest
 ```
+
+
+
+
+
+
+
+Create GCP instance for Gitlab
+
+```
+terraform apply -auto-approve
+```
+
+Install Docker and attach to docker-machine
+
+```
+docker-machine create --driver google \
+  --google-project docker-258721 \
+  --google-zone europe-west1-b \
+  --google-use-existing \
+  gitlab-ce
+
+export GITLAB_EXTERNAL_IP=35.205.182.43
+docker-compose config
+
+eval $(docker-machine env gitlab-ce)
+docker-machine ssh gitlab-ce
+exit
+
+docker-compose up -d
+```
+
+Create runner
+
+```
+docker run -d --name gitlab-runner --restart always \ 
+-v /srv/gitlab-runner/config:/etc/gitlab-runner \ 
+-v /var/run/docker.sock:/var/run/docker.sock \ 
+gitlab/gitlab-runner:latest
+```
+
+Register Runner
+
+```
+docker exec -it gitlab-runner gitlab-runner register --run-untagged --locked=false
+```
+
+## Dynamic environment
+
+
+
+
+## Deployment
+
+Settings > CI/CD > Variables
+
+File
+GOOGLE_APPLICATION_CREDENTIALS
+credentials.json content
+
+
+Для сборки образа нужно изменить конфиг раннера `config.toml`
+
+Заходим на хост gitlab-ci
+Заходим в контейнер раннера
+Находим файл `config.toml`
+
+
+```
+[[runners]]
+  executor = "docker"
+  [runners.docker]
+    privileged = true
+```
+
+
+## Deploy
+
+Создать хост с докером
+Запустить контейнер
+Настроить домен
+
+
+Как удалять старые артефакты?
+Как прибивать старые хосты?
+Когда нужно собирать новый образ?
+
+
+При запуске без оркестратора через `docker-compose up`, если docker container выел весь проц/память, то VM может стать совсем недоступным, поможет только ребут
+
+В случае с оркестрацией можно использовать:
+
+`docker-compose.yml`
+```
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 50M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
+```
+
+
+Установить активную машину:
+
+```
+eval $(docker-machine env gitlab-ce)
+docker-machine ls  
+```
+где gitlab-ce - хост с докером, который нужно сделать активным
+
+
+Запуск и Регистрация раннера:
+
+--restart always \
+
+docker run -d -it --rm \
+--name docker-runner2 \
+-v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "Cif78nZbx34bniAwvp2L" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
+
+
+docker run -d --name gitlab-runner-machine --restart always \
+-v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner:latest
+
+docker exec -it gitlab-runner-machine gitlab-runner register --run-untagged --locked=false
+
+docker exec gitlab-runner-machine \
+gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "Cif78nZbx34bniAwvp2L" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
