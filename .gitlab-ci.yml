@@ -1,0 +1,85 @@
+image: ruby:2.4.2
+
+stages:
+  - build
+  - test
+  - review
+  - stage
+  - production
+
+variables:
+  DATABASE_URL: 'mongodb://mongo/user_posts'
+
+before_script:
+  # - echo $GOOGLE_APPLICATION_CREDENTIALS
+  - cd reddit
+  # - bundle install
+
+build:
+  image: docker:18.09
+  stage: build
+  services:
+      - docker:18.09-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker --version
+    - echo 'Building'
+    - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
+    - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
+    - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+
+test_unit_job: 
+  stage: test 
+  services:
+    - mongo:latest 
+  script:
+    - bundle install
+    - ruby simpletest.rb
+
+test_integration_job:
+  stage: test
+  script:
+    - echo 'Testing 2'
+
+branch review:
+  stage: review
+  script: echo "Deploy to $CI_ENVIRONMENT_SLUG" 
+  environment:
+    name: branch/$CI_COMMIT_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.example.com 
+  only:
+    - branches 
+  except:
+    - master
+
+stage: 
+  image: docker:18.09
+  stage: stage 
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/
+  services:
+      - docker:18.09-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+  script:
+    - echo 'Deploy' 
+    - docker --version
+    - docker-machine --version
+  environment:
+    name: stage
+    url: https://beta.example.com
+
+production: 
+  stage: production 
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/
+  script:
+    - echo 'Deploy' 
+  environment:
+    name: production
+    url: https://example.com
