@@ -373,11 +373,14 @@ exit
 docker-compose up -d
 ```
 
-Then open http://<gitlab host ip>
+Then open `http://<gitlab host ip>`
+
 Create password for `root` account.
+
 Go to `Settings` turn off `Sign up enabled`.
 
 Create new `Group` - `homework`
+
 Create new `Project` in this group - `example`
 
 Add `repository` we just created to our local project git:
@@ -523,9 +526,9 @@ nano /etc/nging/nginx.conf
 nginx -s reload
 ```
 
-Script to create new host: [gitlab-ci/infra/nginx/create-new-site.sh]()
+Script to create new host: [gitlab-ci/infra/nginx/create-new-site.sh](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/gitlab-ci-1/gitlab-ci/infra/nginx/create-new-site.sh)
 
-Script to remove existing host: [gitlab-ci/infra/nginx/remove-site.sh]()
+Script to remove existing host: [gitlab-ci/infra/nginx/remove-site.sh](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/gitlab-ci-1/gitlab-ci/infra/nginx/remove-site.sh)
 
 Deploy on stage host each branch:
 
@@ -566,13 +569,15 @@ Where `docker_vars` and `docker_cert` are `YAML anchors` and content placed in s
     - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
     - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
 ```
-It describes docs here: https://docs.gitlab.com/ee/ci/yaml/#anchors
+`YAML anchors` doc: https://docs.gitlab.com/ee/ci/yaml/#anchors
+
 You need to put TLS certs into Gitlab environment variables first:
 * TLSCACERT
 * TLSCACERT
 * TLSKEY
 
 We create container with name by template `branch-$CI_COMMIT_REF_NAME`
+
 And create domain name by template `http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com`
 
 Environment for stage:
@@ -611,10 +616,6 @@ stage remove:
 
 where we remove host from `nginx` proxy first and then delete the container with our app.
 
-
-
-
-Helpful features in `gitlab-ci.yml`
 
 
 Whole [gitlab-ci.yml]():
@@ -738,7 +739,7 @@ production:
 ```
 
 
-#### Some notes:
+#### Helpful features in `gitlab-ci.yml`
 
 
 1. If docker container instantly eats memory, you can limits it using orchestrator by `docker-compose.yml`
@@ -785,4 +786,3 @@ curl -X POST -H 'Content-type: application/json' --data '{"text":"Allow me to re
 ```
 
 Slack message markup doc: https://api.slack.com/docs/message-formatting
->>>>>>> new-feature
