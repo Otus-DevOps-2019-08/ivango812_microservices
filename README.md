@@ -319,6 +319,7 @@ Use `COPY` if you don't need `ADD` magic
 
 `docker-compose.override.yml` docker reads after `docker-compose.yml` and overrides options, so you don't need to dublicate parameners from `docker-compose.yml` in `docker-compose.override.yml`
 
+...
 
 # Lesson 19 - Gitlab CI
 
@@ -786,3 +787,196 @@ curl -X POST -H 'Content-type: application/json' --data '{"text":"Allow me to re
 ```
 
 Slack message markup doc: https://api.slack.com/docs/message-formatting
+
+
+
+# Lesson 23 - Logging
+
+
+Elastic Stack (aka ELK)
+
+* ElasticSearch (TSDB and search engine for storing logs) 
+* Logstash (for aggregate and transform logs)
+* Kibana (for logs visualization)
+
+But instead of `Logstach` we use `Fluentd`.
+
+Create `docker-compose-logging.yml` for up ELK components.
+
+I've got errors in `elasticsearch` container:
+
+```shell script
+elasticsearch_1  | ERROR: [2] bootstrap checks failed
+elasticsearch_1  | [1]: max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
+elasticsearch_1  | [2]: the default discovery settings are unsuitable for production use; at least one of [discovery.seed_hosts, discovery.seed_providers, cluster.initial_master_nodes] must be configured
+```
+
+to fix the first one run:
+
+```shell script
+docker-machine ssh logging
+sudo sysctl -w vm.max_map_count=262144
+exit
+```
+
+to fix the second one add `environment` variables and `ulimits` to fluentd container:
+
+```shell script
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=docker-cluster
+      - node.master=true
+      - cluster.initial_master_nodes=elasticsearch
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+```
+I've googled this solution.
+
+Then add `fluentd`
+
+## Fluentd
+
+Create [`logginh/fluentd/fluent.conf`]()
+
+Add `logging` section to services you want to handle logs:
+
+```shell script
+    logging:
+      driver: "fluentd"
+      options:
+        fluentd-address: localhost:24224
+        tag: service.ui
+```
+[`docker/docker-compose.yml`]()
+
+
+### Structured logs
+
+`fluent.conf`:
+
+```shell script
+<source>
+  @type forward
+  port 24224
+  bind 0.0.0.0
+</source>
+
+<filter service.post>
+    @type parser
+    format json
+    key_name log
+</filter>
+
+<filter service.ui>
+  @type parser
+  key_name log
+  format grok
+  grok_pattern %{RUBY_LOGGER}
+</filter>
+
+<match *.**>
+  @type copy
+  <store>
+    @type elasticsearch
+    host elasticsearch
+    port 9200
+    logstash_format true
+    logstash_prefix fluentd
+    logstash_dateformat %Y%m%d
+    include_tag_key true
+    type_name access_log
+    tag_key @log_name
+    flush_interval 1s
+  </store>
+  <store>
+    @type stdout
+  </store>
+</match>
+```
+
+### Unstructured logs
+
+Fluentd `grok` docs: https://github.com/fluent/fluent-plugin-grok-parser/blob/master/README.md
+
+
+Parsing гnstructured logs:
+
+`fluent.conf` for Homework with *:
+```
+...
+<filter service.ui>
+  @type parser
+  format grok
+  grok_pattern service=%{WORD:service} \| event=%{WORD:event} \| request_id=%{GREEDYDATA:request_id} \| message='%{GREEDYDATA:message}'
+  grok_pattern service=%{WORD:service} \| event=%{WORD:event} \| path=%{URIPATH:path} \| request_id=%{GREEDYDATA:request_id} \| remote_addr=%{IP:remote_addr} \| method= %{WORD:message} \| response_status=%{INT:response_status}
+  key_name message
+  reserve_data true
+</filter>
+...
+```
+
+## Zipkin
+
+Zipkin is a distributed tracing system - https://zipkin.io
+
+Add `zipkin` service into `docker-compose-logging.yml`:
+
+```shell script
+...
+services:
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - reddit
+...
+```
+
+Don't forget add network to zipkin service where your services run.
+
+Add `environment` variable into services we want to handle logs:
+
+```shell script
+services:
+  ui:
+...
+    environment:
+      - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+...
+```
+
+Add 
+```shell script
+ZIPKIN_ENABLED=true
+```
+into `.env` file
+
+Homework with * - Fixing https://github.com/Artemmkin/bugged-code
+
+The first bug:
+https://github.com/Artemmkin/bugged-code/blob/master/ui/Dockerfile
+doesn't contain variables with service names, so we need to add them into 
+`docker-compose.yml`
+
+```shell script
+service:
+  ui:
+    environment:
+      APP_HOME: ${UI_APP_HOME}
+      ZIPKIN_ENABLED: ${ZIPKIN_ENABLED}
+      POST_SERVICE_HOST: post
+      POST_SERVICE_PORT: 5000
+      COMMENT_SERVICE_HOST: comment
+      COMMENT_SERVICE_PORT: 9292
+    image: ${USERNAME}/ui:${UI_VERSION}
+```
+
+The second bug:
+
+Page with a post opens too slow - about 3 sec. But original version of service takes only 0.1 sec
+We can ask developers to fix it. ;)
