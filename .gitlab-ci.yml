@@ -7,23 +7,48 @@ stages:
   - stage
   - production
 
+
 variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
 
 before_script:
   - cd reddit
-  - bundle install
 
-build_job:
+.docker_conf: 
+  variables: &docker_vars
+    DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
+    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
+  script: &docker_cert
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+
+build:
+  image: docker:18.09
   stage: build
+  only:
+    - /^\d+\.\d+\.\d+/
+    - branches
+  services:
+      - docker:18.09-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
   script:
+    - docker --version
     - echo 'Building'
+    - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
+    - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
+    - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
 
 test_unit_job: 
   stage: test 
   services:
     - mongo:latest 
   script:
+    - bundle install
     - ruby simpletest.rb
 
 test_integration_job:
@@ -33,25 +58,49 @@ test_integration_job:
 
 branch review:
   stage: review
-  script: echo "Deploy to $CI_ENVIRONMENT_SLUG" 
+  script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
   environment:
     name: branch/$CI_COMMIT_REF_NAME
     url: http://$CI_ENVIRONMENT_SLUG.example.com 
   only:
-    - branches 
+    - /^feature-.*/
   except:
     - master
 
-stage: 
-  stage: stage 
+staging: 
+  image: docker:18.09
+  stage: stage
   when: manual
   only:
     - /^\d+\.\d+\.\d+/
+    - branches
+  variables:
+    *docker_vars
   script:
     - echo 'Deploy' 
+    - *docker_cert
+    - docker rm -f $CONTAINER_NAME || true
+    - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+    - docker ps
+    - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
   environment:
-    name: stage
-    url: https://beta.example.com
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
+
+stage remove:
+  image: docker:18.09
+  stage: stage
+  when: manual
+  variables:
+    *docker_vars
+  script:
+    - echo 'Removing staging' 
+    - *docker_cert
+    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
+    - docker rm -f $CONTAINER_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
 
 production: 
   stage: production 
@@ -62,4 +111,4 @@ production:
     - echo 'Deploy' 
   environment:
     name: production
-    url: https://example.com
+    url: https://project.com
