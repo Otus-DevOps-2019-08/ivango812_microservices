@@ -321,6 +321,474 @@ Use `COPY` if you don't need `ADD` magic
 
 ...
 
+# Lesson 19 - Gitlab CI
+
+
+### Create GCP instance with Docker for Gitlab
+
+Get the list of available OS images in GCE
+```shell script
+gcloud compute images list --uri | grep ubuntu
+```
+
+Create GCP instance with Docker
+
+```shell script
+export PROJECT_ID="docker-258721"
+docker-machine create --driver google \
+  --google-zone europe-west3-c \
+  --google-machine-type n1-standard-1 \
+  --google-disk-size 100 \
+  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170721 \
+  --google-project $PROJECT_ID \
+  gitlab-ce
+```
+
+Or create GCP Instance first (with terraform) and install Docker onto it: 
+
+```shell script
+docker-machine create --driver google \
+  --google-project $PROJECT_ID \
+  --google-zone europe-west1-b \
+  --google-use-existing \
+  gitlab-ce
+```
+
+Get IP of the docker-host we just created:
+
+```shell script
+docker-machine env gitlab-ce
+```
+
+Install and run Gitlab:
+
+```shell script
+mkdir gitlab-ci && cd gitlab-ci
+export GITLAB_EXTERNAL_IP=$(docker-machine env gitlab-ce)
+docker-compose config
+
+eval $(docker-machine env gitlab-ce)
+docker-machine ssh gitlab-ce
+exit
+
+docker-compose up -d
+```
+
+Then open `http://<gitlab host ip>`
+
+Create password for `root` account.
+
+Go to `Settings` turn off `Sign up enabled`.
+
+Create new `Group` - `homework`
+
+Create new `Project` in this group - `example`
+
+Add `repository` we just created to our local project git:
+
+```shell script
+git remote add gitlab http://<your-vm-ip>/homework/example.git
+```
+
+### Create runner
+
+```shell script
+docker run -d --name gitlab-runner --restart always \ 
+  -v /srv/gitlab-runner/config:/etc/gitlab-runner \ 
+  -v /var/run/docker.sock:/var/run/docker.sock \ 
+  gitlab/gitlab-runner:latest
+```
+
+Register Runner
+
+Manually:
+```shell script
+docker exec -it gitlab-runner gitlab-runner register --run-untagged --locked=false
+```
+
+Not manually:
+```shell script
+docker exec gitlab-runner \
+  gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "TOKEN" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
+```
+
+
+## Create `.gitlab-ci.yml`
+
+Then create `.gitlab-ci.yml` for our CI/CD pipeline:
+
+### Stage `Build`
+
+Use DinD(Docker in Docker) service to build app image:
+Build image and push in to the registry in `hub.docker.com`
+
+```shell script
+...
+build:
+  image: docker:18.09
+  stage: build
+  only:
+    - /^\d+\.\d+\.\d+/
+    - branches
+  services:
+      - docker:18.09-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker --version
+    - echo 'Building'
+    - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
+    - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
+    - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+...
+```
+
+### Stage `Test`
+
+```shell script
+...
+before_script:
+  - cd reddit
+...
+test_unit_job: 
+  stage: test 
+  services:
+    - mongo:latest 
+  script:
+    - bundle install
+    - ruby simpletest.rb
+...
+```
+
+### Stage `Stage`
+
+Let's create separated stage host for each git branch.
+
+Create wildcard domain record for `*.dev.domain.com` which points on docker-host with `nginx`
+
+Then add `nginx` container that plays role of `http-proxy` for each stage host
+
+`gitlab-ci/infra/nginx/docker-compose-nginx.yml`:
+
+```shell script
+version: '3.3'
+services:
+  comment:
+    image: nginx
+    container_name: nginx
+    ports:
+        - 80:80
+        # - 443:443
+    volumes:
+      # - "/etc/nginx/sites-enabled"
+      - "/etc/nginx"
+      - "/etc/nginx/certs"
+      - "/var/log/nginx"
+    networks:
+      - staging
+
+networks:
+  staging:
+
+```
+
+Let's run `nginx` container
+
+```shell script
+docker-compose -f gitlab-ci/infra/nginx/docker-compose-nginx.yml up -d
+```
+
+Configure `nginx` to work with virtual sites:
+
+```shell script
+docker-machine ssh nginx
+apt update && apt install -y procps nano telnet net-tools iputils-ping
+cd /etc/nginx/ && mkdir sites-available sites-enabled
+exit
+```
+
+```shell script
+nano /etc/nging/nginx.conf
+
+# add line
+#    include /etc/nginx/sites-enabled/*;
+
+nginx -s reload
+```
+
+Script to create new host: [gitlab-ci/infra/nginx/create-new-site.sh](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/gitlab-ci-1/gitlab-ci/infra/nginx/create-new-site.sh)
+
+Script to remove existing host: [gitlab-ci/infra/nginx/remove-site.sh](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/gitlab-ci-1/gitlab-ci/infra/nginx/remove-site.sh)
+
+Deploy on stage host each branch:
+
+```shell script
+staging: 
+  image: docker:18.09
+  stage: stage
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/
+    - branches
+  variables:
+    *docker_vars
+  script:
+    - echo 'Deploy' 
+    - *docker_cert
+    - docker rm -f $CONTAINER_NAME || true
+    - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+    - docker ps
+    - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
+
+```
+
+Where `docker_vars` and `docker_cert` are `YAML anchors` and content placed in section:
+
+```shell script
+.docker_conf: 
+  variables: &docker_vars
+    DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
+    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
+  script: &docker_cert
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+```
+`YAML anchors` doc: https://docs.gitlab.com/ee/ci/yaml/#anchors
+
+You need to put TLS certs into Gitlab environment variables first:
+* TLSCACERT
+* TLSCACERT
+* TLSKEY
+
+We create container with name by template `branch-$CI_COMMIT_REF_NAME`
+
+And create domain name by template `http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com`
+
+Environment for stage:
+
+```shell script
+...
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
+...
+```
+
+If we need to see all branches as one stage environment in Gitlab UI use prefix like `review/` in example above. 
+
+
+#### Remove stage
+
+If don't need stage host anymore we can remove it manually by add manual step to stage `stage`
+
+```shell script
+stage remove:
+  image: docker:18.09
+  stage: stage
+  when: manual
+  variables:
+    *docker_vars
+  script:
+    - echo 'Removing staging' 
+    - *docker_cert
+    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
+    - docker rm -f $CONTAINER_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+```
+
+where we remove host from `nginx` proxy first and then delete the container with our app.
+
+
+
+Whole [gitlab-ci.yml]():
+
+```shell script
+image: ruby:2.4.2
+
+stages:
+  - build
+  - test
+  - review
+  - stage
+  - production
+
+
+variables:
+  DATABASE_URL: 'mongodb://mongo/user_posts'
+
+before_script:
+  - cd reddit
+
+.docker_conf: 
+  variables: &docker_vars
+    DOCKER_HOST: tcp://104.155.2.98:2376
+    DOCKER_TLS_VERIFY: 1
+    DOCKER_CERT_PATH: "/certs"
+    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
+  script: &docker_cert
+    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
+    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
+    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+
+build:
+  image: docker:18.09
+  stage: build
+  only:
+    - /^\d+\.\d+\.\d+/
+    - branches
+  services:
+      - docker:18.09-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+  script:
+    - docker --version
+    - echo 'Building'
+    - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
+    - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
+    - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+
+test_unit_job: 
+  stage: test 
+  services:
+    - mongo:latest 
+  script:
+    - bundle install
+    - ruby simpletest.rb
+
+test_integration_job:
+  stage: test
+  script:
+    - echo 'Integration Tests'
+
+branch review:
+  stage: review
+  script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
+  environment:
+    name: branch/$CI_COMMIT_REF_NAME
+    url: http://$CI_ENVIRONMENT_SLUG.example.com 
+  only:
+    - /^feature-.*/
+  except:
+    - master
+
+staging: 
+  image: docker:18.09
+  stage: stage
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/
+    - branches
+  variables:
+    *docker_vars
+  script:
+    - echo 'Deploy' 
+    - *docker_cert
+    - docker rm -f $CONTAINER_NAME || true
+    - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
+    - docker ps
+    - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
+
+stage remove:
+  image: docker:18.09
+  stage: stage
+  when: manual
+  variables:
+    *docker_vars
+  script:
+    - echo 'Removing staging' 
+    - *docker_cert
+    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
+    - docker rm -f $CONTAINER_NAME
+  environment:
+    name: review/$CI_COMMIT_REF_NAME
+    action: stop
+
+production: 
+  stage: production 
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/
+  script:
+    - echo 'Deploy' 
+  environment:
+    name: production
+    url: https://project.com
+
+```
+
+
+#### Helpful features in `gitlab-ci.yml`
+
+
+1. If docker container instantly eats memory, you can limits it using orchestrator by `docker-compose.yml`
+
+```
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 50M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
+```
+
+2. `Default` docker network doesn't resolve hosts by hostname only by local IP, 
+so we need to create custom network `staging` to have an ability to resolve containers by hostname.
+
+
+3. If you need to connect to the remote docker-host, it needs to put TLS certs into it:
+
+```
+docker-machine config staging-docker
+--tlsverify
+--tlscacert="/Users/me/.docker/machine/machines/staging-docker/ca.pem"
+--tlscert="/Users/me/.docker/machine/machines/staging-docker/cert.pem"
+--tlskey="/Users/me/.docker/machine/machines/staging-docker/key.pem"
+-H=tcp://104.155.2.98:2376
+```
+
+
+4. How to run `cron` in docker: https://ivan.bessarabov.ru/blog/how-to-run-cron-in-docker
+
+
+### Gitlab - Slack integration
+
+`Settings -> Integrations -> Slack Notifications`
+Add webhook url configure triggers checkboxes.
+
+Or you can notify from `gitlab-runner` by:
+
+```shell script
+curl -X POST -H 'Content-type: application/json' --data '{"text":"Allow me to reintroduce myself!"}' https://hooks.slack.com/services/<webhook-key>
+```
+
+Slack message markup doc: https://api.slack.com/docs/message-formatting
+
+
 
 # Lesson 23 - Logging
 
