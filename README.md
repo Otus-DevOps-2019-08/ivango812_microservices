@@ -471,3 +471,162 @@ gitlab-runner register \
   --locked="false" \
   --access-level="not_protected"
 
+# Lesson 20 - Monitoring-1 
+
+Prometheus - configuring, UI, microservices monitoring, using exporter.
+
+Create docker-host first:
+
+```shell script
+docker-machine create --driver google \
+  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \ 
+  --google-machine-type n1-standard-1 \ 
+  --google-zone europe-west1-b \ 
+  docker-host
+
+eval $(docker-machine env docker-host)
+```
+
+Install prometheus using docker image `prom/prometheus:v2.1.0`
+
+```shell script
+docker run --rm -p 9090:9090 -d --name prometheus prom/ prometheus:v2.1.0
+docker-machine ip docker-host
+```
+
+Open UI: http://<docker-host-ip>:9090/graph
+
+Click on "insert metric at cursor" and select `prometheus_build_info`, Execute.
+
+We'll get:
+
+```shell script
+prometheus_build_info{branch="HEAD",goversion="go1.9.1",instance="localhost:9090", 
+job="prometheus", revision= "3a7c51ab70fc7615cd318204d3aa7c078b7c5b20",version="1.8.1"} 1
+```
+
+Where:
+
+prometheus_build_info - metrics name
+branch, goversion, instance, job, revision, version - label
+1 - value
+
+### Prometheus Targets
+
+Select in the Menu: Status -> Targets
+
+We'll get `endpoints` and its state or errors if it rises.
+
+We can take a look at microservice metrics that collects prometheus, open: http://<microservice-ip>:9090/metrics
+
+Rearrange directories according PDF with practice.
+
+### Prometheus Configuring
+
+Prometheus configuring via *.yml files.
+
+Create file [`prometheus.yml`](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-1/monitoring/prometheus/prometheus.yml)
+
+```shell script
+export USER_NAME=username
+```
+
+where `USER_NAME` is docker hub login
+
+```shell script
+docker build -t $USER_NAME/prometheus .
+```
+
+Then let's build all microservices images:
+
+```shell script
+cd /src
+cd /ui && bash docker_build.sh /src/post-py && cd ..
+cd /post-py && bash docker_build.sh /src/comment  && cd ..
+cd /comment && bash docker_build.sh && cd ..
+cd ..
+```
+
+or
+
+```shell script
+for i in ui post-py comment; do cd src/$i; bash docker_build.sh; cd -; done
+```
+
+Add a new service `prometheus` to [`docker-compose.yml`](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-1/docker/docker-compose.yml)
+
+And add `.env` file with ENVIRONMENT VARIABLES for `docker-compose.yml` and `.env.example` for git
+
+Up all our services:
+
+```shell script
+docker-compose up -d
+```
+
+Check http://<docker-host-ip>:9090/targets
+All services should be in `UP` state.
+
+### Prometheus Healthchecks
+
+If service is healthy it should return `status = 1`, if not `status = 0`
+
+At Prometheus UI try to find metric by `ui_health`.
+
+We see that all services are healthy - return `1`
+
+Then let's try tu down one service and check the chart again, it should be set at `0`.
+Turn the service on back and metric will be back too.
+
+### Prometheus Exporters
+
+It's a program that helps prometheus collecting metrics.
+
+Let's try to use `Node exporter` to collect metrics about Docker host working.
+Add `node-exporter` service into `docker-compose.yml` and add next block into `prometheus.yml`
+
+```shell script
+scrape_configs: 
+  
+  ...
+
+  - job_name: 'node' 
+    static_configs:
+      - targets:
+        - 'node-exporter:9100'
+```
+
+Don't forget to rebuild:
+
+```shell script
+docker build -t $USER_NAME/prometheus .
+```
+
+Recreate our services:
+
+```shell script
+docker-compose down 
+docker-compose up -d
+```
+
+Check http://<docker-host-ip>:9090/targets and find new endpoint `node` 
+where we can see: CPU usage, memory, etc...
+
+We can load this host to check how this metric works:
+
+```shell script
+yes > /dev/null
+```
+
+Don't forget to push all images:
+
+```shell script
+docker login
+docker push $USER_NAME/ui
+docker push $USER_NAME/comment
+docker push $USER_NAME/post
+docker push $USER_NAME/prometheus
+```
+
+```shell script
+docker-machine rm docker-host
+```
