@@ -320,154 +320,229 @@ Use `COPY` if you don't need `ADD` magic
 `docker-compose.override.yml` docker reads after `docker-compose.yml` and overrides options, so you don't need to dublicate parameners from `docker-compose.yml` in `docker-compose.override.yml`
 
 
-# Lesson 19
+# Lesson 21 - Monitoring-2
 
+Docker container monitoring.
+Metrics visualisation.
+Collecting app & business metrics.
+Alerting configuring and checking.
 
-Create GCP instance for Gitlab
+Create `docker-host` as in the previous lesson.
 
+Let's split `docker-compose.yml` file onto two files:
+In the `docker-compose.yml` leave app services,
+All monitoring services removed into `docker-compose-monitoring.yml` file.
+
+Now to run monitoring use:
+```shell script
+docker-compose -f docker-compose-monitoring.yml up -d
 ```
-terraform apply -auto-approve
+
+To check our docker containers state we'll use [`cAdvisor`](https://github.com/google/cadvisor)
+Let's add cAdvisor into `docker-compose-monitoring.yml`:
+```shell script
+services:
+  ...
+  cadvisor:
+    image: google/cadvisor:v0.29.0 
+    volumes:
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:rw'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+    ports:
+      - '8080:8080'
 ```
 
-Install Docker and attach to docker-machine
+Add our new service into prometheus config `prometheus.yml`:
 
+```shell script
+scrape_configs:
+  ...
+  - job_name: 'cadvisor' 
+    static_configs:
+      - targets:
+        - 'cadvisor:8080'
 ```
-docker-machine create --driver google \
-  --google-project docker-258721 \
-  --google-zone europe-west1-b \
-  --google-use-existing \
-  gitlab-ce
 
-export GITLAB_EXTERNAL_IP=35.205.182.43
-docker-compose config
+Rebuild monitoring image with new service:
 
-eval $(docker-machine env gitlab-ce)
-docker-machine ssh gitlab-ce
-exit
+```shell script
+export USER_NAME=username # where username - your Docker Hub Login
+docker build -t $USER_NAME/prometheus .
+```
 
+Up our services:
+```shell script
 docker-compose up -d
+docker-compose -f docker-compose-monitoring.yml up -d
 ```
 
-Create runner
+Open cAdvisor UI http://<docker-machine-host-ip>:8080
 
+Click `Docker Containers` at the bottom of the page to see all containers.
+
+Here you can see utilization info about:
+- CPU usage
+- Memory usage
+- Network utilization
+
+At the http://<docker-host>:8080/metrics you can see what exporter pass to the prometheus.
+
+### Grafana
+
+Grafana - visualisation tool for Prometheus.
+
+Grafana service config example:
+
+```shell script
+services:
+
+  grafana:
+    image: grafana/grafana:5.0.0
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+
+volumes:
+  grafana_data:
 ```
-docker run -d --name gitlab-runner --restart always \ 
--v /srv/gitlab-runner/config:/etc/gitlab-runner \ 
--v /var/run/docker.sock:/var/run/docker.sock \ 
-gitlab/gitlab-runner:latest
-```
+ 
+Let's run the new service:
 
-Register Runner
-
-```
-docker exec -it gitlab-runner gitlab-runner register --run-untagged --locked=false
-```
-
-## Dynamic environment
-
-
-
-
-## Deployment
-
-Settings > CI/CD > Variables
-
-File
-GOOGLE_APPLICATION_CREDENTIALS
-credentials.json content
-
-
-Для сборки образа нужно изменить конфиг раннера `config.toml`
-
-Заходим на хост gitlab-ci
-Заходим в контейнер раннера
-Находим файл `config.toml`
-
-
-```
-[[runners]]
-  executor = "docker"
-  [runners.docker]
-    privileged = true
-```
-
-
-## Deploy
-
-Создать хост с докером
-Запустить контейнер
-Настроить домен
-
-
-Как удалять старые артефакты?
-Как прибивать старые хосты?
-Когда нужно собирать новый образ?
-
-
-При запуске без оркестратора через `docker-compose up`, если docker container выел весь проц/память, то VM может стать совсем недоступным, поможет только ребут
-
-В случае с оркестрацией можно использовать:
-
-`docker-compose.yml`
-```
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 50M
-        reservations:
-          cpus: '0.25'
-          memory: 20M
+```shell script
+docker-compose -f docker-compose-monitoring.yml up -d grafana
 ```
 
+And open grafana http://<docker-machine-host-ip>:3000
 
-Установить активную машину:
+Grafana dashboard configuring you can find in PDF-file.
 
+Let's add `post` service to prometheus config:
+```shell script
+scrape_configs:
+  ...
+  - job_name: 'post' 
+    static_configs:
+      - targets:
+        - 'post:5000'
 ```
-eval $(docker-machine env gitlab-ce)
-docker-machine ls  
+
+Rebuild service.
+
+Rerun monitoring services:
+
+```shell script
+docker-compose -f docker-compose-monitoring.yml down
+docker-compose -f docker-compose-monitoring.yml up -d
 ```
-где gitlab-ce - хост с докером, который нужно сделать активным
+
+Results of Services monitoring dashboard config:
+[UI_Service_Monitoring.json](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-2/monitoring/grafana/dashboards/UI_Service_Monitoring.json)
+
+Results of Business Logic monitoring dashboard config:
+[Business_Logic_Monitoring.json](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-2/monitoring/grafana/dashboards/Business_Logic_Monitoring.json)
 
 
-Запуск и Регистрация раннера:
+### Alerting
 
---restart always \
+Alertmanager
 
-docker run -d -it --rm \
---name docker-runner2 \
--v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
--v /var/run/docker.sock:/var/run/docker.sock \
-gitlab/gitlab-runner register \
-  --non-interactive \
-  --url "http://35.205.182.43/" \
-  --registration-token "Cif78nZbx34bniAwvp2L" \
-  --executor "docker" \
-  --docker-image alpine:latest \
-  --description "docker-runner" \
-  --tag-list "docker,linux,xenial,ubuntu" \
-  --run-untagged="true" \
-  --locked="false" \
-  --access-level="not_protected"
+Create next files in the `monitoring/alertmanager`:
 
+`config.yml`:
 
-docker run -d --name gitlab-runner-machine --restart always \
--v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
--v /var/run/docker.sock:/var/run/docker.sock \
-gitlab/gitlab-runner:latest
+```shell script
+global:
+  slack_api_url: 'https://hooks.slack.com/services/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'
 
-docker exec -it gitlab-runner-machine gitlab-runner register --run-untagged --locked=false
+route:
+  receiver: 'slack-notifications'
 
-docker exec gitlab-runner-machine \
-gitlab-runner register \
-  --non-interactive \
-  --url "http://35.205.182.43/" \
-  --registration-token "Cif78nZbx34bniAwvp2L" \
-  --executor "docker" \
-  --docker-image alpine:latest \
-  --description "docker-runner" \
-  --tag-list "docker,linux,xenial,ubuntu" \
-  --run-untagged="true" \
-  --locked="false" \
-  --access-level="not_protected"
+receivers:
+- name: 'slack-notifications'
+  slack_configs:
+  - channel: '#userchannel'
+```
 
+`Dockerfile`
+
+```shell script
+FROM prom/alertmanager:v0.14.0 
+ADD config.yml /etc/alertmanager/
+```
+
+Build alertmanager image:
+
+```shell script
+docker build -t $USER_NAME/alertmanager .
+```
+
+Add new service into `docker-compose-monitoring.yml`:
+```shell script
+services:
+  ...
+  alertmanager:
+    image: ${USER_NAME}/alertmanager 
+    command:
+      - '--config.file=/etc/alertmanager/config.yml' 
+    ports:
+      - 9093:9093
+```
+
+Create Alert rules.
+
+Create file `alerts.yml` in `monitoring/prometheus` dir:
+
+```shell script
+groups:
+  - name: alert.rules
+    rules:
+    - alert: InstanceDown
+      expr: up == 0
+      for: 1m
+      labels:
+        severity: page
+      annotations:
+        description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute'
+        summary: 'Instance {{ $labels.instance }} down'
+```
+
+Add this file coping into `Dockerfile`:
+```shell script
+ADD alerts.yml /etc/prometheus/
+```
+
+Add alerting rules into prometheus config `prometheus.yml`:
+```shell script
+rule_files:
+  - "alerts.yml"
+
+alerting:
+  alertmanagers:
+  - scheme: http
+    static_configs:
+    - targets:
+      - "alertmanager:9093"
+```
+
+Rebuild Prometheus image:
+```shell script
+docker build -t $USER_NAME/prometheus .
+```
+
+Down and Up monitoring infra:
+```shell script
+docker-compose -f docker-compose-monitoring.yml down 
+docker-compose -f docker-compose-monitoring.yml up -d
+```
+
+Check alerting by stopping some app service and get Slack message.
+
+Don't forget push all images to Docker Hub
