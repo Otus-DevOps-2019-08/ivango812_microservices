@@ -7,30 +7,17 @@ stages:
   - stage
   - production
 
-
 variables:
   DATABASE_URL: 'mongodb://mongo/user_posts'
 
 before_script:
+  # - echo $GOOGLE_APPLICATION_CREDENTIALS
   - cd reddit
-
-.docker_conf: 
-  variables: &docker_vars
-    DOCKER_HOST: tcp://104.155.2.98:2376
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "/certs"
-    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
-  script: &docker_cert
-    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
-    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
-    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
+  # - bundle install
 
 build:
   image: docker:18.09
   stage: build
-  only:
-    - /^\d+\.\d+\.\d+/
-    - branches
   services:
       - docker:18.09-dind
   variables:
@@ -58,49 +45,33 @@ test_integration_job:
 
 branch review:
   stage: review
-  script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
+  script: echo "Deploy to $CI_ENVIRONMENT_SLUG" 
   environment:
     name: branch/$CI_COMMIT_REF_NAME
     url: http://$CI_ENVIRONMENT_SLUG.example.com 
   only:
-    - /^feature-.*/
+    - branches 
   except:
     - master
 
-staging: 
+stage: 
   image: docker:18.09
-  stage: stage
+  stage: stage 
   when: manual
   only:
     - /^\d+\.\d+\.\d+/
-    - branches
+  services:
+      - docker:18.09-dind
   variables:
-    *docker_vars
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
   script:
     - echo 'Deploy' 
-    - *docker_cert
-    - docker rm -f $CONTAINER_NAME || true
-    - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
-    - docker ps
-    - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
+    - docker --version
+    - docker-machine --version
   environment:
-    name: review/$CI_COMMIT_REF_NAME
-    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
-
-stage remove:
-  image: docker:18.09
-  stage: stage
-  when: manual
-  variables:
-    *docker_vars
-  script:
-    - echo 'Removing staging' 
-    - *docker_cert
-    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
-    - docker rm -f $CONTAINER_NAME
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    action: stop
+    name: stage
+    url: https://beta.example.com
 
 production: 
   stage: production 
@@ -111,4 +82,4 @@ production:
     - echo 'Deploy' 
   environment:
     name: production
-    url: https://project.com
+    url: https://example.com
