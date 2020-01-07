@@ -1,0 +1,9 @@
+project = "docker-258721"
+region = "europe-west1"
+zone = "europe-west1-b"
+machine_type = "n1-standard-1"
+public_key_path = "~/.ssh/appuser.pub"
+private_key_path = "~/.ssh/appuser"
+// disk_image = "ubuntu-1604-lts"
+disk_image = "docker-host"
+instances_count  = 3

@@ -12,19 +12,20 @@
             }
         ]
     },
-    "description": "",
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "id": 4,
+    "id": 3,
     "links": [],
     "panels": [
         {
             "aliasColors": {},
             "bars": false,
+            "cacheTimeout": null,
             "dashLength": 10,
             "dashes": false,
             "datasource": null,
+            "description": "",
             "fill": 1,
             "fillGradient": 0,
             "gridPos": {
@@ -34,7 +35,7 @@
                 "y": 0
             },
             "hiddenSeries": false,
-            "id": 2,
+            "id": 6,
             "legend": {
                 "avg": false,
                 "current": false,
@@ -46,11 +47,13 @@
             },
             "lines": true,
             "linewidth": 1,
+            "links": [],
             "nullPointMode": "null",
             "options": {
                 "dataLinks": []
             },
             "percentage": false,
+            "pluginVersion": "6.5.2",
             "pointradius": 2,
             "points": false,
             "renderer": "flot",
@@ -60,7 +63,7 @@
             "steppedLine": false,
             "targets": [
                 {
-                    "expr": "rate(post_count[1h])",
+                    "expr": "histogram_quantile(0.95, sum(rate(ui_request_response_time_bucket[5m])) by (le))",
                     "refId": "A"
                 }
             ],
@@ -68,7 +71,7 @@
             "timeFrom": null,
             "timeRegions": [],
             "timeShift": null,
-            "title": "Post count",
+            "title": "UI http request response time 95 quantile",
             "tooltip": {
                 "shared": true,
                 "sort": 0,
@@ -111,6 +114,7 @@
             "dashLength": 10,
             "dashes": false,
             "datasource": null,
+            "description": "UI HTTP 4xx and 5xx errors rate",
             "fill": 1,
             "fillGradient": 0,
             "gridPos": {
@@ -146,7 +150,7 @@
             "steppedLine": false,
             "targets": [
                 {
-                    "expr": "rate(comment_count[1h])",
+                    "expr": "rate(ui_request_count{http_status=~\"^[45].*\"}[1m])",
                     "refId": "A"
                 }
             ],
@@ -154,7 +158,94 @@
             "timeFrom": null,
             "timeRegions": [],
             "timeShift": null,
-            "title": "Comment count",
+            "title": "UI HTTP errors count",
+            "tooltip": {
+                "shared": true,
+                "sort": 0,
+                "value_type": "individual"
+            },
+            "type": "graph",
+            "xaxis": {
+                "buckets": null,
+                "mode": "time",
+                "name": null,
+                "show": true,
+                "values": []
+            },
+            "yaxes": [
+                {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                },
+                {
+                    "format": "short",
+                    "label": null,
+                    "logBase": 1,
+                    "max": null,
+                    "min": null,
+                    "show": true
+                }
+            ],
+            "yaxis": {
+                "align": false,
+                "alignLevel": null
+            }
+        },
+        {
+            "aliasColors": {},
+            "bars": false,
+            "dashLength": 10,
+            "dashes": false,
+            "datasource": null,
+            "description": "Count of all HTTP requests",
+            "fill": 1,
+            "fillGradient": 0,
+            "gridPos": {
+                "h": 9,
+                "w": 12,
+                "x": 0,
+                "y": 8
+            },
+            "hiddenSeries": false,
+            "id": 2,
+            "legend": {
+                "avg": false,
+                "current": false,
+                "max": false,
+                "min": false,
+                "show": true,
+                "total": false,
+                "values": false
+            },
+            "lines": true,
+            "linewidth": 1,
+            "nullPointMode": "null",
+            "options": {
+                "dataLinks": []
+            },
+            "percentage": false,
+            "pointradius": 2,
+            "points": false,
+            "renderer": "flot",
+            "seriesOverrides": [],
+            "spaceLength": 10,
+            "stack": false,
+            "steppedLine": false,
+            "targets": [
+                {
+                    "expr": "rate(ui_request_count{job=\"ui\"}[1m])",
+                    "refId": "A"
+                }
+            ],
+            "thresholds": [],
+            "timeFrom": null,
+            "timeRegions": [],
+            "timeShift": null,
+            "title": "UI HTTP requests count",
             "tooltip": {
                 "shared": true,
                 "sort": 0,
@@ -192,6 +283,7 @@
             }
         }
     ],
+    "refresh": "1m",
     "schemaVersion": 21,
     "style": "dark",
     "tags": [],
@@ -217,7 +309,7 @@
         ]
     },
     "timezone": "",
-    "title": "Business Logic Monitoring",
-    "uid": "D4ErTwB7zP",
-    "version": 3
+    "title": "UI metrics",
+    "uid": "2ei3P6Qfz4",
+    "version": 9
 }

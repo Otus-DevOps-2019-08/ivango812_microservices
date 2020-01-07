@@ -319,52 +319,25 @@ Use `COPY` if you don't need `ADD` magic
 
 `docker-compose.override.yml` docker reads after `docker-compose.yml` and overrides options, so you don't need to dublicate parameners from `docker-compose.yml` in `docker-compose.override.yml`
 
-...
-
-# Lesson 19 - Gitlab CI
+# Lesson 19
 
 
-### Create GCP instance with Docker for Gitlab
+Create GCP instance for Gitlab
 
-Get the list of available OS images in GCE
-```shell script
-gcloud compute images list --uri | grep ubuntu
+```
+terraform apply -auto-approve
 ```
 
-Create GCP instance with Docker
+Install Docker and attach to docker-machine
 
-```shell script
-export PROJECT_ID="docker-258721"
-docker-machine create --driver google \
-  --google-zone europe-west3-c \
-  --google-machine-type n1-standard-1 \
-  --google-disk-size 100 \
-  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/ubuntu-1604-xenial-v20170721 \
-  --google-project $PROJECT_ID \
-  gitlab-ce
 ```
-
-Or create GCP Instance first (with terraform) and install Docker onto it: 
-
-```shell script
 docker-machine create --driver google \
-  --google-project $PROJECT_ID \
+  --google-project docker-258721 \
   --google-zone europe-west1-b \
   --google-use-existing \
   gitlab-ce
-```
 
-Get IP of the docker-host we just created:
-
-```shell script
-docker-machine env gitlab-ce
-```
-
-Install and run Gitlab:
-
-```shell script
-mkdir gitlab-ci && cd gitlab-ci
-export GITLAB_EXTERNAL_IP=$(docker-machine env gitlab-ce)
+export GITLAB_EXTERNAL_IP=35.205.182.43
 docker-compose config
 
 eval $(docker-machine env gitlab-ce)
@@ -374,377 +347,67 @@ exit
 docker-compose up -d
 ```
 
-Then open `http://<gitlab host ip>`
+Create runner
 
-Create password for `root` account.
-
-Go to `Settings` turn off `Sign up enabled`.
-
-Create new `Group` - `homework`
-
-Create new `Project` in this group - `example`
-
-Add `repository` we just created to our local project git:
-
-```shell script
-git remote add gitlab http://<your-vm-ip>/homework/example.git
 ```
-
-### Create runner
-
-```shell script
 docker run -d --name gitlab-runner --restart always \ 
-  -v /srv/gitlab-runner/config:/etc/gitlab-runner \ 
-  -v /var/run/docker.sock:/var/run/docker.sock \ 
-  gitlab/gitlab-runner:latest
+-v /srv/gitlab-runner/config:/etc/gitlab-runner \ 
+-v /var/run/docker.sock:/var/run/docker.sock \ 
+gitlab/gitlab-runner:latest
 ```
 
 Register Runner
 
-Manually:
-```shell script
+```
 docker exec -it gitlab-runner gitlab-runner register --run-untagged --locked=false
 ```
 
-Not manually:
-```shell script
-docker exec gitlab-runner \
-  gitlab-runner register \
-  --non-interactive \
-  --url "http://35.205.182.43/" \
-  --registration-token "TOKEN" \
-  --executor "docker" \
-  --docker-image alpine:latest \
-  --description "docker-runner" \
-  --tag-list "docker,linux,xenial,ubuntu" \
-  --run-untagged="true" \
-  --locked="false" \
-  --access-level="not_protected"
+## Dynamic environment
+
+
+
+
+## Deployment
+
+Settings > CI/CD > Variables
+
+File
+GOOGLE_APPLICATION_CREDENTIALS
+credentials.json content
+
+
+Для сборки образа нужно изменить конфиг раннера `config.toml`
+
+Заходим на хост gitlab-ci
+Заходим в контейнер раннера
+Находим файл `config.toml`
+
+
+```
+[[runners]]
+  executor = "docker"
+  [runners.docker]
+    privileged = true
 ```
 
 
-## Create `.gitlab-ci.yml`
+## Deploy
 
-Then create `.gitlab-ci.yml` for our CI/CD pipeline:
-
-### Stage `Build`
-
-Use DinD(Docker in Docker) service to build app image:
-Build image and push in to the registry in `hub.docker.com`
-
-```shell script
-...
-build:
-  image: docker:18.09
-  stage: build
-  only:
-    - /^\d+\.\d+\.\d+/
-    - branches
-  services:
-      - docker:18.09-dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375/
-    DOCKER_DRIVER: overlay2
-  script:
-    - docker --version
-    - echo 'Building'
-    - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
-    - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
-    - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
-...
-```
-
-### Stage `Test`
-
-```shell script
-...
-before_script:
-  - cd reddit
-...
-test_unit_job: 
-  stage: test 
-  services:
-    - mongo:latest 
-  script:
-    - bundle install
-    - ruby simpletest.rb
-...
-```
-
-### Stage `Stage`
-
-Let's create separated stage host for each git branch.
-
-Create wildcard domain record for `*.dev.domain.com` which points on docker-host with `nginx`
-
-Then add `nginx` container that plays role of `http-proxy` for each stage host
-
-`gitlab-ci/infra/nginx/docker-compose-nginx.yml`:
-
-```shell script
-version: '3.3'
-services:
-  comment:
-    image: nginx
-    container_name: nginx
-    ports:
-        - 80:80
-        # - 443:443
-    volumes:
-      # - "/etc/nginx/sites-enabled"
-      - "/etc/nginx"
-      - "/etc/nginx/certs"
-      - "/var/log/nginx"
-    networks:
-      - staging
-
-networks:
-  staging:
-
-```
-
-Let's run `nginx` container
-
-```shell script
-docker-compose -f gitlab-ci/infra/nginx/docker-compose-nginx.yml up -d
-```
-
-Configure `nginx` to work with virtual sites:
-
-```shell script
-docker-machine ssh nginx
-apt update && apt install -y procps nano telnet net-tools iputils-ping
-cd /etc/nginx/ && mkdir sites-available sites-enabled
-exit
-```
-
-```shell script
-nano /etc/nging/nginx.conf
-
-# add line
-#    include /etc/nginx/sites-enabled/*;
-
-nginx -s reload
-```
-
-Script to create new host: [gitlab-ci/infra/nginx/create-new-site.sh](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/gitlab-ci-1/gitlab-ci/infra/nginx/create-new-site.sh)
-
-Script to remove existing host: [gitlab-ci/infra/nginx/remove-site.sh](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/gitlab-ci-1/gitlab-ci/infra/nginx/remove-site.sh)
-
-Deploy on stage host each branch:
-
-```shell script
-staging: 
-  image: docker:18.09
-  stage: stage
-  when: manual
-  only:
-    - /^\d+\.\d+\.\d+/
-    - branches
-  variables:
-    *docker_vars
-  script:
-    - echo 'Deploy' 
-    - *docker_cert
-    - docker rm -f $CONTAINER_NAME || true
-    - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
-    - docker ps
-    - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
-
-```
-
-Where `docker_vars` and `docker_cert` are `YAML anchors` and content placed in section:
-
-```shell script
-.docker_conf: 
-  variables: &docker_vars
-    DOCKER_HOST: tcp://104.155.2.98:2376
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "/certs"
-    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
-  script: &docker_cert
-    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
-    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
-    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
-```
-`YAML anchors` doc: https://docs.gitlab.com/ee/ci/yaml/#anchors
-
-You need to put TLS certs into Gitlab environment variables first:
-* TLSCACERT
-* TLSCACERT
-* TLSKEY
-
-We create container with name by template `branch-$CI_COMMIT_REF_NAME`
-
-And create domain name by template `http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com`
-
-Environment for stage:
-
-```shell script
-...
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
-...
-```
-
-If we need to see all branches as one stage environment in Gitlab UI use prefix like `review/` in example above. 
+Создать хост с докером
+Запустить контейнер
+Настроить домен
 
 
-#### Remove stage
-
-If don't need stage host anymore we can remove it manually by add manual step to stage `stage`
-
-```shell script
-stage remove:
-  image: docker:18.09
-  stage: stage
-  when: manual
-  variables:
-    *docker_vars
-  script:
-    - echo 'Removing staging' 
-    - *docker_cert
-    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
-    - docker rm -f $CONTAINER_NAME
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    action: stop
-```
-
-where we remove host from `nginx` proxy first and then delete the container with our app.
+Как удалять старые артефакты?
+Как прибивать старые хосты?
+Когда нужно собирать новый образ?
 
 
+При запуске без оркестратора через `docker-compose up`, если docker container выел весь проц/память, то VM может стать совсем недоступным, поможет только ребут
 
-Whole [gitlab-ci.yml]():
+В случае с оркестрацией можно использовать:
 
-```shell script
-image: ruby:2.4.2
-
-stages:
-  - build
-  - test
-  - review
-  - stage
-  - production
-
-
-variables:
-  DATABASE_URL: 'mongodb://mongo/user_posts'
-
-before_script:
-  - cd reddit
-
-.docker_conf: 
-  variables: &docker_vars
-    DOCKER_HOST: tcp://104.155.2.98:2376
-    DOCKER_TLS_VERIFY: 1
-    DOCKER_CERT_PATH: "/certs"
-    CONTAINER_NAME: branch-$CI_COMMIT_REF_NAME
-  script: &docker_cert
-    - echo "$TLSCACERT" > $DOCKER_CERT_PATH/ca.pem
-    - echo "$TLSCERT" > $DOCKER_CERT_PATH/cert.pem
-    - echo "$TLSKEY" > $DOCKER_CERT_PATH/key.pem
-
-build:
-  image: docker:18.09
-  stage: build
-  only:
-    - /^\d+\.\d+\.\d+/
-    - branches
-  services:
-      - docker:18.09-dind
-  variables:
-    DOCKER_HOST: tcp://docker:2375/
-    DOCKER_DRIVER: overlay2
-  script:
-    - docker --version
-    - echo 'Building'
-    - docker login -u $REGISTRY_USER -p $REGISTRY_PASSWORD
-    - docker build -t $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA .
-    - docker push $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
-
-test_unit_job: 
-  stage: test 
-  services:
-    - mongo:latest 
-  script:
-    - bundle install
-    - ruby simpletest.rb
-
-test_integration_job:
-  stage: test
-  script:
-    - echo 'Integration Tests'
-
-branch review:
-  stage: review
-  script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
-  environment:
-    name: branch/$CI_COMMIT_REF_NAME
-    url: http://$CI_ENVIRONMENT_SLUG.example.com 
-  only:
-    - /^feature-.*/
-  except:
-    - master
-
-staging: 
-  image: docker:18.09
-  stage: stage
-  when: manual
-  only:
-    - /^\d+\.\d+\.\d+/
-    - branches
-  variables:
-    *docker_vars
-  script:
-    - echo 'Deploy' 
-    - *docker_cert
-    - docker rm -f $CONTAINER_NAME || true
-    - docker run -d --name $CONTAINER_NAME --network ivango812_microservices_staging $REGISTRY_USER/reddit:$CI_COMMIT_SHORT_SHA
-    - docker ps
-    - docker exec nginx /srv/create-new-site.sh $CI_COMMIT_REF_NAME
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    url: http://$CI_COMMIT_REF_NAME.dev.newbusinesslogic.com
-
-stage remove:
-  image: docker:18.09
-  stage: stage
-  when: manual
-  variables:
-    *docker_vars
-  script:
-    - echo 'Removing staging' 
-    - *docker_cert
-    - docker exec nginx /srv/remove-site.sh $CI_COMMIT_REF_NAME
-    - docker rm -f $CONTAINER_NAME
-  environment:
-    name: review/$CI_COMMIT_REF_NAME
-    action: stop
-
-production: 
-  stage: production 
-  when: manual
-  only:
-    - /^\d+\.\d+\.\d+/
-  script:
-    - echo 'Deploy' 
-  environment:
-    name: production
-    url: https://project.com
-
-```
-
-
-#### Helpful features in `gitlab-ci.yml`
-
-
-1. If docker container instantly eats memory, you can limits it using orchestrator by `docker-compose.yml`
-
+`docker-compose.yml`
 ```
     deploy:
       resources:
@@ -756,38 +419,443 @@ production:
           memory: 20M
 ```
 
-2. `Default` docker network doesn't resolve hosts by hostname only by local IP, 
-so we need to create custom network `staging` to have an ability to resolve containers by hostname.
 
-
-3. If you need to connect to the remote docker-host, it needs to put TLS certs into it:
+Установить активную машину:
 
 ```
-docker-machine config staging-docker
---tlsverify
---tlscacert="/Users/me/.docker/machine/machines/staging-docker/ca.pem"
---tlscert="/Users/me/.docker/machine/machines/staging-docker/cert.pem"
---tlskey="/Users/me/.docker/machine/machines/staging-docker/key.pem"
--H=tcp://104.155.2.98:2376
+eval $(docker-machine env gitlab-ce)
+docker-machine ls  
 ```
+где gitlab-ce - хост с докером, который нужно сделать активным
 
 
-4. How to run `cron` in docker: https://ivan.bessarabov.ru/blog/how-to-run-cron-in-docker
+Запуск и Регистрация раннера:
+
+--restart always \
+
+docker run -d -it --rm \
+--name docker-runner2 \
+-v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "Cif78nZbx34bniAwvp2L" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
 
 
-### Gitlab - Slack integration
+docker run -d --name gitlab-runner-machine --restart always \
+-v /srv/gitlab-runner-machine/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner:latest
 
-`Settings -> Integrations -> Slack Notifications`
-Add webhook url configure triggers checkboxes.
+docker exec -it gitlab-runner-machine gitlab-runner register --run-untagged --locked=false
 
-Or you can notify from `gitlab-runner` by:
+docker exec gitlab-runner-machine \
+gitlab-runner register \
+  --non-interactive \
+  --url "http://35.205.182.43/" \
+  --registration-token "Cif78nZbx34bniAwvp2L" \
+  --executor "docker" \
+  --docker-image alpine:latest \
+  --description "docker-runner" \
+  --tag-list "docker,linux,xenial,ubuntu" \
+  --run-untagged="true" \
+  --locked="false" \
+  --access-level="not_protected"
+
+# Lesson 20 - Monitoring-1 
+
+Prometheus - configuring, UI, microservices monitoring, using exporter.
+
+Create docker-host first:
 
 ```shell script
-curl -X POST -H 'Content-type: application/json' --data '{"text":"Allow me to reintroduce myself!"}' https://hooks.slack.com/services/<webhook-key>
+docker-machine create --driver google \
+  --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \ 
+  --google-machine-type n1-standard-1 \ 
+  --google-zone europe-west1-b \ 
+  docker-host
+
+eval $(docker-machine env docker-host)
 ```
 
-Slack message markup doc: https://api.slack.com/docs/message-formatting
+Install prometheus using docker image `prom/prometheus:v2.1.0`
 
+```shell script
+docker run --rm -p 9090:9090 -d --name prometheus prom/ prometheus:v2.1.0
+docker-machine ip docker-host
+```
+
+Open UI: http://<docker-host-ip>:9090/graph
+
+Click on "insert metric at cursor" and select `prometheus_build_info`, Execute.
+
+We'll get:
+
+```shell script
+prometheus_build_info{branch="HEAD",goversion="go1.9.1",instance="localhost:9090", 
+job="prometheus", revision= "3a7c51ab70fc7615cd318204d3aa7c078b7c5b20",version="1.8.1"} 1
+```
+
+Where:
+
+prometheus_build_info - metrics name
+branch, goversion, instance, job, revision, version - label
+1 - value
+
+### Prometheus Targets
+
+Select in the Menu: Status -> Targets
+
+We'll get `endpoints` and its state or errors if it rises.
+
+We can take a look at microservice metrics that collects prometheus, open: http://<microservice-ip>:9090/metrics
+
+Rearrange directories according PDF with practice.
+
+### Prometheus Configuring
+
+Prometheus configuring via *.yml files.
+
+Create file [`prometheus.yml`](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-1/monitoring/prometheus/prometheus.yml)
+
+```shell script
+export USER_NAME=username
+```
+
+where `USER_NAME` is docker hub login
+
+```shell script
+docker build -t $USER_NAME/prometheus .
+```
+
+Then let's build all microservices images:
+
+```shell script
+cd /src
+cd /ui && bash docker_build.sh /src/post-py && cd ..
+cd /post-py && bash docker_build.sh /src/comment  && cd ..
+cd /comment && bash docker_build.sh && cd ..
+cd ..
+```
+
+or
+
+```shell script
+for i in ui post-py comment; do cd src/$i; bash docker_build.sh; cd -; done
+```
+
+Add a new service `prometheus` to [`docker-compose.yml`](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-1/docker/docker-compose.yml)
+
+And add `.env` file with ENVIRONMENT VARIABLES for `docker-compose.yml` and `.env.example` for git
+
+Up all our services:
+
+```shell script
+docker-compose up -d
+```
+
+Check http://<docker-host-ip>:9090/targets
+All services should be in `UP` state.
+
+### Prometheus Healthchecks
+
+If service is healthy it should return `status = 1`, if not `status = 0`
+
+At Prometheus UI try to find metric by `ui_health`.
+
+We see that all services are healthy - return `1`
+
+Then let's try tu down one service and check the chart again, it should be set at `0`.
+Turn the service on back and metric will be back too.
+
+### Prometheus Exporters
+
+It's a program that helps prometheus collecting metrics.
+
+Let's try to use `Node exporter` to collect metrics about Docker host working.
+Add `node-exporter` service into `docker-compose.yml` and add next block into `prometheus.yml`
+
+```shell script
+scrape_configs: 
+  
+  ...
+
+  - job_name: 'node' 
+    static_configs:
+      - targets:
+        - 'node-exporter:9100'
+```
+
+Don't forget to rebuild:
+
+```shell script
+docker build -t $USER_NAME/prometheus .
+```
+
+Recreate our services:
+
+```shell script
+docker-compose down 
+docker-compose up -d
+```
+
+Check http://<docker-host-ip>:9090/targets and find new endpoint `node` 
+where we can see: CPU usage, memory, etc...
+
+We can load this host to check how this metric works:
+
+```shell script
+yes > /dev/null
+```
+
+Don't forget to push all images:
+
+```shell script
+docker login
+docker push $USER_NAME/ui
+docker push $USER_NAME/comment
+docker push $USER_NAME/post
+docker push $USER_NAME/prometheus
+```
+
+```shell script
+docker-machine rm docker-host
+```
+
+# Lesson 21 - Monitoring-2
+
+Docker container monitoring.
+Metrics visualisation.
+Collecting app & business metrics.
+Alerting configuring and checking.
+
+Create `docker-host` as in the previous lesson.
+
+Let's split `docker-compose.yml` file onto two files:
+In the `docker-compose.yml` leave app services,
+All monitoring services removed into `docker-compose-monitoring.yml` file.
+
+Now to run monitoring use:
+```shell script
+docker-compose -f docker-compose-monitoring.yml up -d
+```
+
+To check our docker containers state we'll use [`cAdvisor`](https://github.com/google/cadvisor)
+Let's add cAdvisor into `docker-compose-monitoring.yml`:
+```shell script
+services:
+  ...
+  cadvisor:
+    image: google/cadvisor:v0.29.0 
+    volumes:
+      - '/:/rootfs:ro'
+      - '/var/run:/var/run:rw'
+      - '/sys:/sys:ro'
+      - '/var/lib/docker/:/var/lib/docker:ro'
+    ports:
+      - '8080:8080'
+```
+
+Add our new service into prometheus config `prometheus.yml`:
+
+```shell script
+scrape_configs:
+  ...
+  - job_name: 'cadvisor' 
+    static_configs:
+      - targets:
+        - 'cadvisor:8080'
+```
+
+Rebuild monitoring image with new service:
+
+```shell script
+export USER_NAME=username # where username - your Docker Hub Login
+docker build -t $USER_NAME/prometheus .
+```
+
+Up our services:
+```shell script
+docker-compose up -d
+docker-compose -f docker-compose-monitoring.yml up -d
+```
+
+Open cAdvisor UI http://<docker-machine-host-ip>:8080
+
+Click `Docker Containers` at the bottom of the page to see all containers.
+
+Here you can see utilization info about:
+- CPU usage
+- Memory usage
+- Network utilization
+
+At the http://<docker-host>:8080/metrics you can see what exporter pass to the prometheus.
+
+### Grafana
+
+Grafana - visualisation tool for Prometheus.
+
+Grafana service config example:
+
+```shell script
+services:
+
+  grafana:
+    image: grafana/grafana:5.0.0
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+
+volumes:
+  grafana_data:
+```
+ 
+Let's run the new service:
+
+```shell script
+docker-compose -f docker-compose-monitoring.yml up -d grafana
+```
+
+And open grafana http://<docker-machine-host-ip>:3000
+
+Grafana dashboard configuring you can find in PDF-file.
+
+Let's add `post` service to prometheus config:
+```shell script
+scrape_configs:
+  ...
+  - job_name: 'post' 
+    static_configs:
+      - targets:
+        - 'post:5000'
+```
+
+Rebuild service.
+
+Rerun monitoring services:
+
+```shell script
+docker-compose -f docker-compose-monitoring.yml down
+docker-compose -f docker-compose-monitoring.yml up -d
+```
+
+Results of Services monitoring dashboard config:
+[UI_Service_Monitoring.json](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-2/monitoring/grafana/dashboards/UI_Service_Monitoring.json)
+
+Results of Business Logic monitoring dashboard config:
+[Business_Logic_Monitoring.json](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-2/monitoring/grafana/dashboards/Business_Logic_Monitoring.json)
+
+
+### Alerting
+
+Alertmanager
+
+Create next files in the `monitoring/alertmanager`:
+
+`config.yml`:
+
+```shell script
+global:
+  slack_api_url: 'https://hooks.slack.com/services/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'
+
+route:
+  receiver: 'slack-notifications'
+
+receivers:
+- name: 'slack-notifications'
+  slack_configs:
+  - channel: '#userchannel'
+```
+
+`Dockerfile`
+
+```shell script
+FROM prom/alertmanager:v0.14.0 
+ADD config.yml /etc/alertmanager/
+```
+
+Build alertmanager image:
+
+```shell script
+docker build -t $USER_NAME/alertmanager .
+```
+
+Add new service into `docker-compose-monitoring.yml`:
+```shell script
+services:
+  ...
+  alertmanager:
+    image: ${USER_NAME}/alertmanager 
+    command:
+      - '--config.file=/etc/alertmanager/config.yml' 
+    ports:
+      - 9093:9093
+```
+
+Create Alert rules.
+
+Create file `alerts.yml` in `monitoring/prometheus` dir:
+
+```shell script
+groups:
+  - name: alert.rules
+    rules:
+    - alert: InstanceDown
+      expr: up == 0
+      for: 1m
+      labels:
+        severity: page
+      annotations:
+        description: '{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minute'
+        summary: 'Instance {{ $labels.instance }} down'
+```
+
+Add this file coping into `Dockerfile`:
+```shell script
+ADD alerts.yml /etc/prometheus/
+```
+
+Add alerting rules into prometheus config `prometheus.yml`:
+```shell script
+rule_files:
+  - "alerts.yml"
+
+alerting:
+  alertmanagers:
+  - scheme: http
+    static_configs:
+    - targets:
+      - "alertmanager:9093"
+```
+
+Rebuild Prometheus image:
+```shell script
+docker build -t $USER_NAME/prometheus .
+```
+
+Down and Up monitoring infra:
+```shell script
+docker-compose -f docker-compose-monitoring.yml down 
+docker-compose -f docker-compose-monitoring.yml up -d
+```
+
+Check alerting by stopping some app service and get Slack message.
+
+Don't forget push all images to Docker Hub
 
 
 # Lesson 23 - Logging
