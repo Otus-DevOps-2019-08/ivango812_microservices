@@ -1,0 +1,23 @@
+version: '3.3'
+services:
+  comment:
+    image: nginx
+    container_name: nginx
+    ports:
+        - 80:80
+        # - 443:443
+    volumes:
+      # - "/etc/nginx/sites-enabled"
+      - "/etc/nginx"
+      - "/etc/nginx/certs"
+      - "/var/log/nginx"
+    networks:
+      - staging
+
+networks:
+  staging:
+
+# создать Dockerfile
+# добавить свой nginx.conf
+# создать директории `sites-availabe` `sites-enabled` в `/etc/nginx`
+# закинуть скрипты create-new-site.sh remove_site.sh
