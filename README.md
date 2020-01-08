@@ -759,7 +759,6 @@ Results of Services monitoring dashboard config:
 Results of Business Logic monitoring dashboard config:
 [Business_Logic_Monitoring.json](https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/monitoring-2/monitoring/grafana/dashboards/Business_Logic_Monitoring.json)
 
-
 ### Alerting
 
 Alertmanager
