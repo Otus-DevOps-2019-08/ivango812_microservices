@@ -630,3 +630,12 @@ docker push $USER_NAME/prometheus
 ```shell script
 docker-machine rm docker-host
 ```
+
+# Lesson 25 - Kubenetes The Hard Way
+
+Passed sucsessfuly through https://github.com/kelseyhightower/kubernetes-the-hard-way
+
+All artefacts stored in `kubernetes/the_hard_way` directory
+
+All app deployment manifests stored in `kubenetes/reddit` directory
+
