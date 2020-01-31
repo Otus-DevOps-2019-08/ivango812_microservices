@@ -639,3 +639,276 @@ All artefacts stored in `kubernetes/the_hard_way` directory
 
 All app deployment manifests stored in `kubenetes/reddit` directory
 
+# Lesson 26 - Minikube, GKE
+
+### Minikube
+
+Install `kubectl` first https://kubernetes.io/docs/tasks/tools/install-kubectl/
+
+Install `minikube` https://kubernetes.io/docs/tasks/tools/install-minikube/
+
+Run `minikube`:
+
+```
+minikube start
+```
+
+or with kubernetes version and vm-driver:
+
+```
+minikube start --vm-driver=virtualbox --kubernetes-version=v1.11.10
+```
+
+Check `minikube`:
+
+```
+kubectl get nodes
+
+NAME      STATUS  ROLES   AGE   VERSION 
+minikube  Ready   <none>  3h    v1.10.0
+```
+
+`kubectl` configuration is a context, context is a combination of:
+* cluster
+* user
+* namespace
+
+Information about `kubectl` context stored in `~/.kube/config` file
+
+`~/.kube/config` it's the same kubenetes YAML-manifest.
+
+`cluster` is:
+* server - address of kubernetes API-server
+* certificate-authority - the root certificate
+* +name - for identification in config
+
+An order of `kubectl` configuring the next:
+1. Create *cluster*
+```
+kubectl config set-cluster ... cluster_name
+```
+
+2. Create *credentials*
+```
+kubectl config set-credentials ... user_name
+```
+
+3. Create *context*
+```
+kubectl config set-context context_name \
+  --cluster=cluster_name \
+  --user=user_name
+```
+
+4. Use *context*
+```
+kubectl config use-context context_name
+```
+
+To see current context:
+
+```
+kubectl config current-context
+minikube
+```
+
+To see all context:
+
+```
+kubectl config get-contexts
+```
+
+To run component:
+```
+kubectl apply -f ui-deployment.yml
+deployment "ui" created
+```
+
+To see deployments:
+```
+kubectl get deployment
+NAME DESIRED CURRENT UP-TO-DATE AVAILABLE AGE ui 3 3 3 3 1m
+```
+
+To see pods with selector:
+```
+kubectl get pods --selector component=ui
+```
+
+For port forwarding:
+```
+kubectl port-forward <pod-name> 8080:9292
+```
+
+Then you can open in the browser http://localhost:8080
+
+Let's create `post` component listening on the 5000/tcp port:
+
+...
+
+Let's create `service` component to have an endpoint to addressing to our application:
+```
+kubectl describe service comment | grep Endpoints
+
+Endpoints: 172.17.0.9:5000
+```
+
+Let's check that our pod-name lookup works properly:
+```
+kubectl exec -ti <pod-name> nslookup comment
+```
+
+To see pod logs:
+```
+kubectl logs post-56bbbf6795-7btnm
+```
+
+To see all services list:
+```
+minikube services list
+```
+
+List of all addons:
+```
+minikube addons list
+```
+
+Kubernetes has 3 default namespases:
+
+*default* - for objects if namespace doesn't set
+*kube-system* - for object created by kubernetes and for managing kubernetes
+*kube-public* - for objects that needs access from any point of cluster
+
+To set namespace use flag `-n <namespace> or --namespace <namespace>`
+
+Let's get our dashboard objects:
+```
+kubectl get all -n kube-system --selector k8s-app=kubernetes-dashboard
+```
+
+Let's run our dashboard:
+```
+minikube service kubernetes-dashboard -n kube-system
+```
+
+
+
+
+```
+kubectl get all -n kube-system --selector k8s-app=kubernetes-dashboard
+```
+
+
+
+
+```
+kubectl get deployment
+NAME      DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
+comment   3         3         3            3           3m
+post      3         3         3            3           3m
+ui        3         3         3            3           18m
+```
+
+Run `ui` app:
+
+http://localhost:8080
+
+```
+Microservices Reddit in ui-56888989b5-9fcc8 container
+...
+```
+
+Run `comment` app:
+
+http://localhost:8080/healthcheck
+
+```
+{"status":0,"dependent_services":{"commentdb":0},"version":"0.0.3"}
+```
+
+Run `post` app:
+
+http://localhost:8080/healthcheck
+```
+{"status": 0, "version": "0.0.2", "dependent_services": {"postdb": 0}}
+```
+
+Creating `Service` `comment`:
+
+```
+kubectl apply -f comment-service.yml
+```
+
+Viewing service PODs:
+
+```
+kubectl describe service comment | grep Endpoints
+Endpoints:         172.17.0.7:9292,172.17.0.8:9292,172.17.0.9:9292
+```
+
+
+Run `dashboard`
+
+```
+minikube dashboard
+```
+
+
+## Kubernetes at GKE (Google Kubernetes Engine)
+
+Create cluster in GUI GKE as described in `xxx-practice.PDF`
+
+Connect to the GKE-cluster:
+
+```
+gcloud container clusters get-credentials kubenetes-2 --zone europe-north1-a --project docker-258721
+```
+
+To see current-context:
+```
+kubectl config current-context
+```
+Let's create namespace first:
+```
+kubectl apply -f ./kubernetes/reddit/dev-namespace.yml
+```
+
+And deploy all components:
+```
+kubectl apply -f ./kubernetes/reddit/ -n dev
+```
+
+Dont's forget to add firewall rule for:
+target: all 
+IP-addresses range: 0.0.0.0/0 
+ports range: tcp:30000-32767
+
+
+Let's see external IPs:
+```
+kubectl get nodes -o wide
+```
+
+And get a port of service publication:
+```
+kubectl describe service ui -n dev | grep NodePort
+```
+
+Open our app at: http://<node-ip>:<NodePort>
+
+
+
+Reddit screenshot at GKE https://prnt.sc/qsoj3o
+
+Let's create cluster creation by terraform:
+
+
+
+Let's create YAML manifest for dashboard deployment:
+
+I found YAML for dashboard activate:
+https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta8/aio/deploy/recommended.yaml
+```
