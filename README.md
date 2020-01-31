@@ -900,14 +900,46 @@ Open our app at: http://<node-ip>:<NodePort>
 
 Reddit screenshot at GKE https://prnt.sc/qsoj3o
 
-Let's create cluster creation by terraform:
+
+*Kubernetes dashboard*
+
+Run
+
+```
+kubectl proxy
+```
+
+and open http://localhost:8001/ui
+
+Let's set `cluster-admin` role to service account of dashboard using clusterrolebinding:
+
+```
+kubectl create clusterrolebinding kubernetes-dashboard   --clusterrole=cluster-admin --serviceaccount=kube-system:kubernetes-dashboard
+```
+
+And reload http://localhost:8001/ui
 
 
+*Tasks with **
+
+### Up kubernetes by terraform
+
+Let's create cluster creation by terraform: https://github.com/Otus-DevOps-2019-08/ivango812_microservices/tree/kubernetes-2/kubernetes/terraform
+
+Or use this module https://github.com/terraform-google-modules/terraform-google-kubernetes-engine
+
+
+### Up kubernetes dashboard by YAML manifest
 
 Let's create YAML manifest for dashboard deployment:
 
 I found YAML for dashboard activate:
 https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/
+
+Save it to the our git:
+https://github.com/Otus-DevOps-2019-08/ivango812_microservices/blob/kubernetes-2/kubernetes/dashboard.yaml
+
+Run it:
 
 ```
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.0.0-beta8/aio/deploy/recommended.yaml
