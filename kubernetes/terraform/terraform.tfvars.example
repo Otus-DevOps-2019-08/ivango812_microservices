@@ -1,0 +1,3 @@
+project_id   = "docker-xxxxxx"
+region       = "europe-north1"
+machine_type = "g1-small"
